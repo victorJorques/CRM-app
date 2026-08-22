@@ -29,7 +29,8 @@ dentro de Node.
 | **Motor de huecos** | Horarios partidos, festivos, cierres del negocio, vacaciones o bajas de una sola persona, duración y margen por servicio, varios recursos, y el fin de semana en que cambia la hora. |
 | **Recordatorios** | Aviso la víspera, repesca de quien no vino y lista de quien lleva meses sin aparecer. |
 | **Simulador** | Escríbele como si fueras un cliente. Lo que pasa ahí es real y queda guardado. |
-| **Cerrado por fuera** | Panel con clave y sesión firmada, webhooks con firma comprobada, y por correo no se toca una cita si el remitente no cuadra. |
+| **Cerrado por fuera** | Panel con clave, sesión firmada y freno a la fuerza bruta; webhooks con firma comprobada; y por correo no se toca una cita si el remitente no cuadra. |
+| **Tus datos son tuyos** | `node exportar.js` saca clientes, citas y mensajes a CSV y copia la base entera. |
 
 ## Cómo habla
 
@@ -142,11 +143,28 @@ canales/           panel (HTTP y API), whatsapp, correo (SMTP e IMAP), llamadas
 datos/             SQLite: esquema y acceso
 panel/             la interfaz
 plantillas/        seis tipos de negocio listos
+exportar.js        saca los datos a CSV y copia la base
 demo-web/          empaqueta todo en una página web que funciona sin servidor
-pruebas/           295 pruebas
+pruebas/           309 pruebas
 ```
 
 Más detalle en [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
+
+## Sacar tus datos
+
+```
+node exportar.js                          # todo, a copias/2026-08-22/
+node exportar.js --desde 2026-01-01       # solo las citas de este año
+node exportar.js --cliente +34600111222   # todo lo de una persona
+```
+
+Deja los CSV listos para abrir con doble clic (con los acentos bien) y una
+copia de la base entera. **Esa copia es la que importa**: con ese único fichero
+Conserje vuelve a arrancar exactamente como estaba. Guárdala donde no esté el
+ordenador que la generó.
+
+Lo de `--cliente` es para cuando alguien pregunta qué tienes suyo: sale su
+ficha, sus citas y sus mensajes, y nada de nadie más.
 
 ## Verlo sin instalar nada
 
@@ -168,7 +186,7 @@ solo para construir la demostración, y por eso no están en `package.json`.
 ## Pruebas
 
 ```
-npm test     # 295 pruebas, sin red y sin tocar tu base
+npm test     # 309 pruebas, sin red y sin tocar tu base
 ```
 
 Cubren el motor de huecos (incluido el fin de semana del cambio de hora), que

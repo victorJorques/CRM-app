@@ -12,6 +12,7 @@
     "configurar": "node configurar.js",
     "sembrar": "node sembrar.js",
     "demo": "node demo.js",
+    "exportar": "node exportar.js",
     "test": "node --test pruebas/*.test.js"
   },
   "dependencies": {}

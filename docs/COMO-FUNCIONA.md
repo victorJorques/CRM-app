@@ -100,10 +100,17 @@ ocurre en producción.
   dentro se ve tal cual, no se ejecuta.
 - El `.env` y la base de datos están fuera del repositorio (`.gitignore`).
 
+## Copias
+
+`node exportar.js` hace dos cosas distintas y conviene no confundirlas: los
+CSV son para leer y para dárselos a alguien; la copia de `conserje.db` es la
+que restaura el sistema. Antes de copiarla se cierra el diario
+(`PRAGMA wal_checkpoint(TRUNCATE)`), porque si no la copia sale a medias.
+
 ## Probar
 
 ```
-npm test            # 295 pruebas, sin red
+npm test            # 309 pruebas, sin red
 node demo.js        # el sistema entero en la terminal, base en memoria
 node demo.js plantillas/taller.json   # con otro tipo de negocio
 ```
