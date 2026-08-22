@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import { nuevoId } from '../datos/db.js';
-import { servicioPorId, recursoPorId } from './config.js';
+import { servicioPorId } from './config.js';
 import { comprobarHora, minutosQueOcupa, ESTADOS_ACTIVOS } from './agenda.js';
 import { buscarOCrear, porId as clientePorId } from './clientes.js';
 import { programarDeCita, cancelarDeCita, programarNoVino } from './recordatorios.js';
@@ -63,7 +63,13 @@ export function reservar(db, config, {
       return { ok: false, motivo: comprobacion.motivo, detalle: comprobacion.detalle, alternativas: comprobacion.alternativas };
     }
     const ficha = clienteId ? clientePorId(db, clienteId) : buscarOCrear(db, cliente ?? {});
-    if (!ficha) return { ok: false, motivo: 'cliente-desconocido', alternativas: [] };
+    if (!ficha) {
+      return {
+        ok: false,
+        motivo: clienteId ? 'cliente-desconocido' : 'sin-contacto',
+        alternativas: [],
+      };
+    }
 
     const hueco = comprobacion.hueco;
     const id = nuevoId('cita');

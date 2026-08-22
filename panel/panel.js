@@ -173,6 +173,10 @@ $('#nuevaCita').addEventListener('click', async () => {
     evento.preventDefault();
     const [inicio, recurso] = ($('#ncHueco').value || '').split('|');
     if (!inicio) { $('#ncError').textContent = 'Elige un hueco.'; return; }
+    if (!$('#ncTelefono').value.trim() && !$('#ncNombre').value.trim()) {
+      $('#ncError').textContent = 'Pon al menos un teléfono o un nombre, o luego no sabrás de quién es.';
+      return;
+    }
     const resultado = await pedir('/api/citas', {
       method: 'POST',
       cuerpo: {
@@ -182,7 +186,17 @@ $('#nuevaCita').addEventListener('click', async () => {
         cliente: { telefono: $('#ncTelefono').value, nombre: $('#ncNombre').value },
       },
     });
-    if (!resultado.ok) { $('#ncError').textContent = `No se ha podido: ${resultado.motivo}`; return; }
+    if (!resultado.ok) {
+      const explicaciones = {
+        ocupado: 'Esa hora ya está cogida.',
+        'fuera-de-horario': 'A esa hora no se trabaja.',
+        cerrado: 'Ese día está cerrado.',
+        'sin-contacto': 'Pon al menos un teléfono o un nombre.',
+        'demasiado-justo': 'Es demasiado justo para la antelación que pide la configuración.',
+      };
+      $('#ncError').textContent = explicaciones[resultado.motivo] ?? `No se ha podido: ${resultado.motivo}`;
+      return;
+    }
     $('#dialogo').close();
     cargarAgenda();
     cargarEstado();

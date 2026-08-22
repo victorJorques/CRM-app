@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as r from '../nucleo/redaccion.js';
-import { negocioDePrueba, plantilla, instante, LUNES, AHORA, ZONA } from './ayuda.js';
+import { negocioDePrueba, plantilla, instante, LUNES, AHORA } from './ayuda.js';
 import { revisarConfig } from '../nucleo/config.js';
 
 const config = negocioDePrueba();

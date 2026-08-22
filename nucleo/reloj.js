@@ -5,7 +5,6 @@
 // ---------------------------------------------------------------------------
 
 import * as recordatorios from './recordatorios.js';
-import * as clientes from './clientes.js';
 import * as bandeja from './bandeja.js';
 import * as redaccion from './redaccion.js';
 import { mandar } from '../canales/enviar.js';

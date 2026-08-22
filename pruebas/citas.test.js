@@ -230,3 +230,14 @@ test('cada movimiento queda en el registro de eventos', () => {
   assert.ok(tipos.includes('cita.reservada'));
   assert.ok(tipos.includes('cita.anulada'));
 });
+
+test('una cita sin ningún dato del cliente no se guarda', () => {
+  const { db, config, ahora } = montar();
+  const r = citas.reservar(db, config, {
+    servicioId: 'corte', inicio: instante(LUNES, 10), cliente: { telefono: '', nombre: '' }, ahora,
+  });
+  assert.ok(!r.ok);
+  assert.equal(r.motivo, 'sin-contacto');
+  assert.equal(db.valor('SELECT COUNT(*) FROM citas'), 0);
+  assert.equal(db.valor('SELECT COUNT(*) FROM clientes'), 0);
+});

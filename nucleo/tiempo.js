@@ -88,6 +88,20 @@ export function instanteDe(zona, clave, minutosDelDia) {
   return aUtc(zona, { anio, mes, dia, hora: Math.floor(minutosDelDia / 60), minuto: minutosDelDia % 60 });
 }
 
+/**
+ * El primer instante que existe de ese dia local. Casi siempre son las 00:00,
+ * pero hay paises donde el reloj se adelanta justo a medianoche (Chile, Cuba,
+ * Iran...) y ese dia las 00:00 no existen: entonces el dia empieza a la 01:00.
+ * Dar por hecho que existe la medianoche descoloca la agenda entera ese dia.
+ */
+export function inicioDelDia(zona, clave) {
+  for (let minuto = 0; minuto <= 180; minuto += 15) {
+    const ms = instanteDe(zona, clave, minuto);
+    if (ms !== null) return ms;
+  }
+  return Date.parse(`${clave}T00:00:00Z`);   // no deberia pasar nunca
+}
+
 /** Nombre interno del dia de la semana ('lunes', 'miercoles'...). */
 export function diaSemana(zona, msOClave) {
   const clave = typeof msOClave === 'string' ? msOClave : claveDia(zona, msOClave);

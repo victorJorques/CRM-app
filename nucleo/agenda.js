@@ -5,10 +5,10 @@
 // ---------------------------------------------------------------------------
 
 import {
-  claveDia, diaSemana, instanteDe, sumarDias, diasEntre, hora, horaDeMinutos,
+  claveDia, diaSemana, instanteDe, inicioDelDia, sumarDias, diasEntre, hora, horaDeMinutos,
 } from './tiempo.js';
 import {
-  servicioPorId, recursoPorId, recursosDe, horarioDe, esFestivo, motivoCierre, ausencia, sinTildes,
+  servicioPorId, recursosDe, horarioDe, esFestivo, motivoCierre, ausencia, sinTildes,
 } from './config.js';
 
 export const ESTADOS_ACTIVOS = ['reservada', 'confirmada', 'atendida'];
@@ -63,7 +63,7 @@ export function tramosDe(config, recurso, clave) {
 }
 
 function citasEseDia(db, recursoId, clave, zona) {
-  const inicioDia = instanteDe(zona, clave, 0) ?? Date.parse(`${clave}T00:00:00Z`);
+  const inicioDia = inicioDelDia(zona, clave);
   const finDia = inicioDia + 36 * 3600000;
   return db.valor(
     `SELECT COUNT(*) FROM citas WHERE recurso_id = $recursoId
@@ -177,7 +177,7 @@ export function comprobarHora(db, config, {
   if (!servicio) return { libre: false, motivo: 'servicio-desconocido', alternativas: [] };
   const zona = config.negocio.zonaHoraria;
   const clave = claveDia(zona, inicio);
-  const minuto = Math.round((inicio - (instanteDe(zona, clave, 0) ?? inicio)) / 60000);
+  const minuto = Math.round((inicio - inicioDelDia(zona, clave)) / 60000);
 
   const alternativas = () => buscarHuecos(db, config, {
     servicioId, desde: clave, recursoId, ahora, limite: config.reglas.huecosQueOfrece ?? 4,
@@ -279,8 +279,8 @@ export function porQueNoHayHuecos(config, { clave, servicio = null, recurso = nu
 /** Lo que hay que ver de un dia: quien trabaja, que tiene y cuanto suma. */
 export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
   const zona = config.negocio.zonaHoraria;
-  const inicioDia = instanteDe(zona, clave, 0) ?? Date.parse(`${clave}T00:00:00Z`);
-  const finDia = (instanteDe(zona, sumarDias(clave, 1), 0) ?? inicioDia + 86400000);
+  const inicioDia = inicioDelDia(zona, clave);
+  const finDia = inicioDelDia(zona, sumarDias(clave, 1));
   const citas = db.filas(
     `SELECT c.*, cl.nombre AS cliente_nombre, cl.telefono AS cliente_telefono
      FROM citas c JOIN clientes cl ON cl.id = c.cliente_id

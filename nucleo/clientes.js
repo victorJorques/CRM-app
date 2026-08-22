@@ -59,11 +59,16 @@ export function porCorreo(db, correo) {
 /**
  * Busca por telefono o correo y, si no hay nadie, crea la ficha. Si ya existe
  * y llega un dato nuevo (el nombre, el correo), lo completa sin pisar nada.
+ *
+ * Devuelve null si no hay NADA con lo que identificar a nadie: sin teléfono,
+ * sin correo y sin nombre no se crea ficha. Una ficha en blanco no se puede
+ * volver a encontrar nunca, así que solo sirve para ensuciar el listado.
  */
 export function buscarOCrear(db, { telefono, correo, nombre } = {}) {
   const t = normalizarTelefono(telefono);
   const c = normalizarCorreo(correo);
   const nombreLimpio = nombre ? String(nombre).trim().slice(0, 80) : '';
+  if (!t && !c && !nombreLimpio) return null;
   const existente = (t && porTelefono(db, t)) || (c && porCorreo(db, c)) || null;
   const ahora = Date.now();
 
@@ -147,25 +152,30 @@ export function ficha(db, id, { limiteCitas = 50 } = {}) {
 }
 
 /** Listado del panel, con busqueda por nombre o telefono. */
+const CONSULTA_LISTADO = `
+  SELECT c.*,
+         (SELECT COUNT(*) FROM citas WHERE cliente_id = c.id) AS citas,
+         (SELECT MAX(inicio) FROM citas WHERE cliente_id = c.id AND estado = 'atendida') AS ultimaVisita
+  FROM clientes c
+  ORDER BY c.actualizado_en DESC`;
+
+/**
+ * Listado del panel. Sin búsqueda, se pagina en la base. Con búsqueda hay que
+ * mirar a todo el mundo: el filtro ignora tildes y mayúsculas, y eso SQLite no
+ * lo sabe hacer. Antes se miraban solo los 500 últimos y quien llevaba tiempo
+ * sin venir era exactamente el que no aparecía al buscarlo.
+ */
 export function listar(db, { busqueda = '', limite = 100, desplazamiento = 0 } = {}) {
   const texto = sinTildes(busqueda).trim();
-  const filas = db.filas(
-    `SELECT c.*,
-            (SELECT COUNT(*) FROM citas WHERE cliente_id = c.id) AS citas,
-            (SELECT MAX(inicio) FROM citas WHERE cliente_id = c.id AND estado = 'atendida') AS ultimaVisita
-     FROM clientes c
-     ORDER BY c.actualizado_en DESC
-     LIMIT $limite OFFSET $desplazamiento`,
-    { limite: 500, desplazamiento: 0 },
-  );
-  const filtradas = texto
-    ? filas.filter((f) => sinTildes(f.nombre).includes(texto)
-      || (f.telefono ?? '').includes(texto)
-      || sinTildes(f.correo ?? '').includes(texto))
-    : filas;
-  return filtradas.slice(desplazamiento, desplazamiento + limite).map((f) => ({
-    ...filaACliente(f), citas: f.citas, ultimaVisita: f.ultimaVisita,
-  }));
+  const enFicha = (f) => sinTildes(f.nombre).includes(texto)
+    || (f.telefono ?? '').includes(texto)
+    || sinTildes(f.correo ?? '').includes(texto);
+
+  const filas = texto
+    ? db.filas(CONSULTA_LISTADO).filter(enFicha).slice(desplazamiento, desplazamiento + limite)
+    : db.filas(`${CONSULTA_LISTADO} LIMIT $limite OFFSET $desplazamiento`, { limite, desplazamiento });
+
+  return filas.map((f) => ({ ...filaACliente(f), citas: f.citas, ultimaVisita: f.ultimaVisita }));
 }
 
 /** Quien lleva mucho sin aparecer: la lista para escribirles. */

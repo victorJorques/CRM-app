@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import * as claude from '../cerebro/claude.js';
 import { contestar } from '../cerebro/index.js';
 import * as bandeja from '../nucleo/bandeja.js';
-import { montar, instante, LUNES } from './ayuda.js';
+import { montar, LUNES } from './ayuda.js';
 
 const fetchDeVerdad = globalThis.fetch;
 const claveDeVerdad = process.env.ANTHROPIC_API_KEY;

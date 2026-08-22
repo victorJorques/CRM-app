@@ -4,7 +4,7 @@ import { definiciones, ejecutar } from '../cerebro/herramientas.js';
 import * as bandeja from '../nucleo/bandeja.js';
 import * as clientes from '../nucleo/clientes.js';
 import * as citas from '../nucleo/citas.js';
-import { montar, instante, LUNES, MARTES, DOMINGO } from './ayuda.js';
+import { montar, LUNES, MARTES, DOMINGO } from './ayuda.js';
 
 function contexto(cambios = {}) {
   const entorno = montar();

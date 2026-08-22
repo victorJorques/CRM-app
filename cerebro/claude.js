@@ -6,7 +6,7 @@
 
 import { definiciones, ejecutar } from './herramientas.js';
 import * as redaccion from '../nucleo/redaccion.js';
-import { fechaLarga, hora as horaDe, claveDia } from '../nucleo/tiempo.js';
+import { fechaLarga, hora as horaDe } from '../nucleo/tiempo.js';
 
 const URL_API = 'https://api.anthropic.com/v1/messages';
 const VERSION_API = '2023-06-01';

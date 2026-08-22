@@ -126,3 +126,43 @@ test('quien ya tiene cita pedida no sale como inactivo', () => {
   citas.reservar(db, config, { servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora });
   assert.equal(clientes.inactivos(db, { dias: 120, ahora }).length, 0);
 });
+
+test('buscar encuentra también a quien lleva mucho sin venir', () => {
+  const { db } = montar();
+  // El listado se ordena por lo último tocado: el primero queda el más viejo.
+  const viejo = clientes.buscarOCrear(db, { telefono: '+34600100001', nombre: 'Práxedes Antigua' });
+  for (let i = 2; i < 620; i += 1) {
+    clientes.buscarOCrear(db, { telefono: `+346001${String(i).padStart(5, '0')}`, nombre: `Cliente ${i}` });
+  }
+  const encontrados = clientes.listar(db, { busqueda: 'praxedes' });
+  assert.equal(encontrados.length, 1);
+  assert.equal(encontrados[0].id, viejo.id);
+});
+
+test('sin búsqueda, el listado pagina de verdad', () => {
+  const { db } = montar();
+  for (let i = 0; i < 30; i += 1) {
+    clientes.buscarOCrear(db, { telefono: `+346002${String(i).padStart(5, '0')}`, nombre: `Cliente ${i}` });
+  }
+  const primera = clientes.listar(db, { limite: 10 });
+  const segunda = clientes.listar(db, { limite: 10, desplazamiento: 10 });
+  assert.equal(primera.length, 10);
+  assert.equal(segunda.length, 10);
+  assert.equal(new Set([...primera, ...segunda].map((c) => c.id)).size, 20);
+});
+
+test('sin teléfono, sin correo y sin nombre no se crea ninguna ficha', () => {
+  const { db } = montar();
+  assert.equal(clientes.buscarOCrear(db, {}), null);
+  assert.equal(clientes.buscarOCrear(db, { nombre: '   ' }), null);
+  assert.equal(clientes.buscarOCrear(db, { telefono: '12345' }), null);   // no es un teléfono
+  assert.equal(db.valor('SELECT COUNT(*) FROM clientes'), 0);
+});
+
+test('con solo el nombre sí se crea: el que entra por la puerta también cuenta', () => {
+  const { db } = montar();
+  const ficha = clientes.buscarOCrear(db, { nombre: 'María sin teléfono' });
+  assert.ok(ficha);
+  assert.equal(ficha.nombre, 'María sin teléfono');
+  assert.equal(ficha.telefono, null);
+});

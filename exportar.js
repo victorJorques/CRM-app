@@ -18,7 +18,7 @@ import { cargarConfig } from './nucleo/config-fichero.js';
 import { abrirBase } from './datos/db.js';
 import * as clientes from './nucleo/clientes.js';
 import { todo, todoDeUnCliente } from './nucleo/exportar.js';
-import { claveDia } from './nucleo/tiempo.js';
+import { claveDia, inicioDelDia, esClaveDia } from './nucleo/tiempo.js';
 
 const gris = (t) => `\x1b[90m${t}\x1b[0m`;
 const verde = (t) => `\x1b[32m${t}\x1b[0m`;
@@ -52,7 +52,13 @@ if (telefono) {
   ficheros = todoDeUnCliente(db, config, quien.id);
   console.log(`\n  Todo lo de ${quien.nombre || quien.telefono}:`);
 } else {
-  ficheros = todo(db, config, { desde: argumento('desde') ? Date.parse(`${argumento('desde')}T00:00:00Z`) : null });
+  // El corte es a medianoche del negocio, no a medianoche de Greenwich.
+  const desdeTexto = argumento('desde');
+  if (desdeTexto && !esClaveDia(desdeTexto)) {
+    console.error(`--desde "${desdeTexto}" no es una fecha con formato 2026-01-01.`);
+    process.exit(1);
+  }
+  ficheros = todo(db, config, { desde: desdeTexto ? inicioDelDia(zona, desdeTexto) : null });
   console.log(`\n  ${config.negocio.nombre}:`);
 }
 

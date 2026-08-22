@@ -4,13 +4,13 @@
 // horas. Todo pasa por aqui, y aqui todo pasa por el motor de agenda.
 // ---------------------------------------------------------------------------
 
-import { servicioPorId, recursoPorId, recursosDe, esFestivo, motivoCierre } from '../nucleo/config.js';
+import { servicioPorId, recursosDe } from '../nucleo/config.js';
 import { buscarHuecos, comprobarHora, porQueNoHayHuecos } from '../nucleo/agenda.js';
 import * as citas from '../nucleo/citas.js';
 import * as clientes from '../nucleo/clientes.js';
 import * as bandeja from '../nucleo/bandeja.js';
 import * as redaccion from '../nucleo/redaccion.js';
-import { claveDia, instanteDe, hora as horaDe, fechaYHora } from '../nucleo/tiempo.js';
+import { instanteDe, fechaYHora } from '../nucleo/tiempo.js';
 import {
   resolverDia, resolverHora, resolverServicio, resolverRecurso, desambiguarConHorario, horaEsExplicita,
 } from './entender.js';

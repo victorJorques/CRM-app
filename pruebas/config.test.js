@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync } from 'node:fs';
 import {
   revisarConfig, servicioPorId, recursoPorId, recursosDe, horarioDe, esFestivo, motivoCierre, aClave,
 } from '../nucleo/config.js';

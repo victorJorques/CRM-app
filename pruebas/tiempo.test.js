@@ -85,3 +85,19 @@ test('instanteDe y claveDia son la ida y la vuelta', () => {
   assert.equal(t.claveDia(ZONA, ms), '2026-11-02');
   assert.equal(t.hora(ZONA, ms), '09:30');
 });
+
+test('hay días que no empiezan a las 00:00 y hay que saberlo', () => {
+  // En Santiago de Chile el reloj se adelanta justo a medianoche: ese día las
+  // 00:00 no existen y el día empieza a la 01:00. Dar por hecho lo contrario
+  // descoloca la agenda entera de ese día.
+  assert.equal(t.aUtc('America/Santiago', { anio: 2026, mes: 9, dia: 6, hora: 0, minuto: 0 }), null);
+  const empieza = t.inicioDelDia('America/Santiago', '2026-09-06');
+  assert.equal(t.hora('America/Santiago', empieza), '01:00');
+  assert.equal(t.claveDia('America/Santiago', empieza), '2026-09-06');
+});
+
+test('un día normal empieza a las 00:00', () => {
+  const empieza = t.inicioDelDia(ZONA, '2026-08-24');
+  assert.equal(t.hora(ZONA, empieza), '00:00');
+  assert.equal(t.claveDia(ZONA, empieza), '2026-08-24');
+});
