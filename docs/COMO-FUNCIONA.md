@@ -86,11 +86,18 @@ ocurre en producción.
 ## Seguridad
 
 - Panel: clave + sesión firmada con HMAC y caducidad. Sin clave, solo desde el
-  propio ordenador.
+  propio ordenador. La clave se compara en tiempo constante, a los cinco
+  intentos fallidos la dirección se frena (espera creciente hasta cinco
+  minutos) y cada fallo queda en `eventos`. Detrás de HTTPS la galleta sale
+  marcada `Secure`.
 - WhatsApp: firma `X-Hub-Signature-256` comprobada sobre el cuerpo **crudo**.
 - Twilio: firma `X-Twilio-Signature` sobre la URL pública y los parámetros.
 - Correo: identifica por remitente; quien no cuadra no puede tocar citas
   ajenas.
+- Los estáticos se sirven decodificando la ruta ANTES de comprobarla, para que
+  `%2e%2e` no sea un atajo para salirse de `panel/`.
+- Lo que escribe un cliente se pinta siempre escapado: un nombre con `<script>`
+  dentro se ve tal cual, no se ejecuta.
 - El `.env` y la base de datos están fuera del repositorio (`.gitignore`).
 
 ## Probar

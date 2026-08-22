@@ -25,6 +25,55 @@ const TIPOS = {
   '.ico': 'image/x-icon',
 };
 const DURACION_SESION = 12 * 3600 * 1000;
+const INTENTOS_ANTES_DE_FRENAR = 5;
+const CASTIGO_MAXIMO_MS = 5 * 60 * 1000;
+
+/**
+ * Freno para quien prueba claves a lo bruto. En memoria y por dirección: no
+ * hace falta más para un panel de un negocio, y lo que hay que evitar es que
+ * alguien pruebe diez mil claves esta noche.
+ */
+const OLVIDO_MS = 15 * 60 * 1000;
+const MAXIMO_VIGILADOS = 5000;
+
+/**
+ * Freno para quien prueba claves a lo bruto. Uno por servidor, en memoria: no
+ * hace falta más para el panel de un negocio, y lo que hay que evitar es que
+ * alguien pruebe diez mil claves esta noche.
+ */
+function crearFreno() {
+  const intentos = new Map();
+  return {
+    /** Milisegundos que le quedan de castigo a esa dirección, o 0. */
+    castigo(ip) {
+      const registro = intentos.get(ip);
+      if (!registro) return 0;
+      // Se olvida por no haber vuelto a fallar en un buen rato, no por mirarlo.
+      if (Date.now() - registro.ultimo > OLVIDO_MS) {
+        intentos.delete(ip);
+        return 0;
+      }
+      return Math.max(0, registro.hasta - Date.now());
+    },
+    fallo(ip) {
+      const registro = intentos.get(ip) ?? { fallos: 0, hasta: 0, ultimo: 0 };
+      registro.fallos += 1;
+      registro.ultimo = Date.now();
+      if (registro.fallos >= INTENTOS_ANTES_DE_FRENAR) {
+        const espera = Math.min(2 ** (registro.fallos - INTENTOS_ANTES_DE_FRENAR) * 5000, CASTIGO_MAXIMO_MS);
+        registro.hasta = Date.now() + espera;
+      }
+      intentos.set(ip, registro);
+      if (intentos.size > MAXIMO_VIGILADOS) {
+        for (const [otra, suyo] of intentos) {
+          if (Date.now() - suyo.ultimo > OLVIDO_MS) intentos.delete(otra);
+        }
+      }
+      return registro;
+    },
+    olvidar(ip) { intentos.delete(ip); },
+  };
+}
 
 function json(res, datos, estado = 200) {
   const cuerpo = JSON.stringify(datos ?? null);
@@ -100,6 +149,8 @@ export function crearServidor(estado) {
   const clave = estado.clave ?? process.env.CONSERJE_CLAVE ?? '';
   const secreto = estado.secreto ?? process.env.CONSERJE_SECRETO ?? randomBytes(32).toString('hex');
 
+  const freno = crearFreno();
+
   const autorizado = (req) => {
     if (!clave) return esLocal(req);
     return Boolean(comprobarFirma(galletas(req).conserje, secreto));
@@ -124,12 +175,30 @@ export function crearServidor(estado) {
       if (ruta === '/api/entrar' && req.method === 'POST') {
         const cuerpo = await leerCuerpo(req);
         if (!clave) return json(res, { ok: true, sinClave: true });
-        if (String(cuerpo.clave ?? '') !== clave) {
+        const ip = req.socket.remoteAddress ?? 'desconocida';
+        const castigo = freno.castigo(ip);
+        if (castigo > 0) {
+          return json(res, {
+            ok: false,
+            error: `Demasiados intentos. Prueba dentro de ${Math.ceil(castigo / 1000)} segundos.`,
+          }, 429);
+        }
+        // Comparación en tiempo constante: que no se pueda adivinar la clave
+        // midiendo lo que tarda en decir que no.
+        const enviada = Buffer.from(String(cuerpo.clave ?? ''));
+        const buena = Buffer.from(clave);
+        const acierta = enviada.length === buena.length && timingSafeEqual(enviada, buena);
+        if (!acierta) {
+          const registro = freno.fallo(ip);
+          db.apuntar('panel.clave-fallida', ip, { fallos: registro.fallos });
           await new Promise((r) => setTimeout(r, 400));
           return json(res, { ok: false, error: 'La clave no es esa.' }, 401);
         }
+        freno.olvidar(ip);
+        const seguro = (req.headers['x-forwarded-proto'] ?? '').split(',')[0].trim() === 'https'
+          || (process.env.CONSERJE_URL_PUBLICA ?? '').startsWith('https://');
         const galleta = firmar(`${randomBytes(8).toString('hex')}:${Date.now() + DURACION_SESION}`, secreto);
-        res.setHeader('set-cookie', `conserje=${encodeURIComponent(galleta)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${DURACION_SESION / 1000}`);
+        res.setHeader('set-cookie', `conserje=${encodeURIComponent(galleta)}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${DURACION_SESION / 1000}${seguro ? '; Secure' : ''}`);
         return json(res, { ok: true });
       }
       if (ruta === '/api/salir') {
@@ -160,8 +229,15 @@ export function crearServidor(estado) {
 }
 
 async function servirEstatico(ruta, res) {
-  const archivo = ruta === '/' ? 'index.html' : ruta.replace(/^\//, '');
-  if (archivo.includes('..')) {
+  let pedido;
+  try {
+    pedido = decodeURIComponent(ruta);      // '%2e%2e' también es '..'
+  } catch {
+    res.writeHead(400).end('Ruta no válida');
+    return;
+  }
+  const archivo = pedido === '/' ? 'index.html' : pedido.replace(/^\/+/, '');
+  if (archivo.includes('..') || archivo.includes('\0') || archivo.startsWith('/')) {
     res.writeHead(400).end('Ruta no válida');
     return;
   }

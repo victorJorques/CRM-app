@@ -247,3 +247,61 @@ test('el webhook de WhatsApp rechaza una firma que no cuadra', async () => {
   delete process.env.WHATSAPP_SECRETO_APP;
   await panel.cerrar();
 });
+
+// --- Lo que pasa cuando alguien intenta entrar por la fuerza ---------------
+
+test('a la sexta clave mala deja de contestar un rato', async () => {
+  const panel = await levantar({ clave: 'secreta123', secreto: 'x'.repeat(32) });
+  let ultima;
+  for (let i = 0; i < 6; i += 1) {
+    ultima = await panel.pedir('/api/entrar', { method: 'POST', cuerpo: { clave: `intento-${i}` } });
+  }
+  assert.equal(ultima.status, 429);
+  assert.match((await ultima.json()).error, /Demasiados intentos/);
+  // Y con la buena tampoco entra mientras dure el castigo
+  const buena = await panel.pedir('/api/entrar', { method: 'POST', cuerpo: { clave: 'secreta123' } });
+  assert.equal(buena.status, 429);
+  await panel.cerrar();
+});
+
+test('los intentos fallidos quedan registrados', async () => {
+  const panel = await levantar({ clave: 'secreta123', secreto: 'x'.repeat(32) });
+  await panel.pedir('/api/entrar', { method: 'POST', cuerpo: { clave: 'no' } });
+  const eventos = panel.db.filas("SELECT * FROM eventos WHERE tipo = 'panel.clave-fallida'");
+  assert.equal(eventos.length, 1);
+  await panel.cerrar();
+});
+
+test('una clave de otra longitud no entra ni por casualidad', async () => {
+  const panel = await levantar({ clave: 'secreta123', secreto: 'x'.repeat(32) });
+  for (const mala of ['', 'secreta12', 'secreta1234', 'SECRETA123']) {
+    const r = await panel.pedir('/api/entrar', { method: 'POST', cuerpo: { clave: mala } });
+    assert.equal(r.status, 401, mala);
+  }
+  await panel.cerrar();
+});
+
+test('la sesión se marca Secure cuando se sirve por HTTPS', async () => {
+  const panel = await levantar({ clave: 'secreta123', secreto: 'x'.repeat(32) });
+  const normal = await panel.pedir('/api/entrar', { method: 'POST', cuerpo: { clave: 'secreta123' } });
+  assert.ok(!normal.headers.get('set-cookie').includes('Secure'));
+  const detras = await panel.pedir('/api/entrar', {
+    method: 'POST', cuerpo: { clave: 'secreta123' }, headers: { 'x-forwarded-proto': 'https' },
+  });
+  const galleta = detras.headers.get('set-cookie');
+  assert.match(galleta, /Secure/);
+  assert.match(galleta, /HttpOnly/);
+  assert.match(galleta, /SameSite=Strict/);
+  await panel.cerrar();
+});
+
+test('no se sale de la carpeta del panel ni con la ruta codificada', async () => {
+  const panel = await levantar();
+  for (const ruta of ['/../datos/conserje.db', '/%2e%2e/%2e%2e/etc/passwd', '/..%2f..%2fetc%2fpasswd', '/panel/../../.env']) {
+    const respuesta = await panel.pedir(ruta);
+    assert.ok([400, 404].includes(respuesta.status), `${ruta} → ${respuesta.status}`);
+    const cuerpo = await respuesta.text();
+    assert.ok(!cuerpo.includes('ANTHROPIC'), ruta);
+  }
+  await panel.cerrar();
+});

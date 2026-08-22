@@ -96,7 +96,7 @@ npx cloudflared tunnel --url http://localhost:4180
 8. Escríbele al número desde tu móvil. Debería contestarte.
 
 > El secreto de la app no es opcional de verdad: sin él, Conserje no puede
-> comprobar que lo que llega viene de Meta. Ponlo.
+> comprobar que lo que llega viene de Meta, y al arrancar te lo dirá. Ponlo.
 
 ---
 
@@ -166,7 +166,9 @@ CONSERJE_SECRETO=otra-cadena-larga-al-azar
 ```
 
    Sin `CONSERJE_CLAVE`, el panel solo se abre desde el propio ordenador. Es a
-   propósito: más vale no llegar que llegar abierto.
+   propósito: más vale no llegar que llegar abierto. Con clave puesta, a los
+   cinco intentos fallidos esa dirección se queda esperando un rato, y los
+   fallos quedan apuntados.
 
 3. Arráncalo como servicio (systemd, pm2, lo que uses) y ponle un dominio con
    HTTPS por delante. Esa dirección es la que va en los webhooks, en vez del

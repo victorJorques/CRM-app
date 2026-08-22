@@ -75,6 +75,9 @@ async function principal() {
   if (encendidos.length) bien(`Canales encendidos: ${encendidos.join(', ')}.`);
   else ojo('Ningún canal de fuera configurado: se usa entero desde el panel y el simulador.');
 
+  if (canales.whatsapp && !process.env.WHATSAPP_SECRETO_APP) {
+    ojo('WhatsApp sin WHATSAPP_SECRETO_APP: no puedo comprobar que lo que llega al webhook venga de Meta. Ponlo (Configuración → Básica en la app de Meta).');
+  }
   if (!process.env.CONSERJE_CLAVE) {
     ojo('Sin CONSERJE_CLAVE: el panel solo se abre desde este ordenador.');
   } else if (process.env.CONSERJE_CLAVE.length < 8) {
