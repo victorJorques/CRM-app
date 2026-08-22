@@ -37,9 +37,12 @@ const cerebro = process.env.ANTHROPIC_API_KEY ? cerebroDisponible() : 'reglas';
 console.log(`\n${negrita('Conserje')} ${gris(`· ${config.negocio.nombre} · cerebro: ${cerebro}`)}`);
 console.log(gris(`  Configuración: ${rutaConfig} · base en memoria, no se toca nada tuyo\n`));
 
+// El guión sale de la configuración: así vale igual para una peluquería que
+// para un taller o una clínica.
+const servicioDemo = config.servicios.find((s) => s.activo) ?? config.servicios[0];
 const guion = [
-  'buenas, ¿qué precio tiene un corte?',
-  `quiero uno ${sumarDias(claveDia(zona, ahora), 3)} por la mañana`,
+  `buenas, ¿qué precio tiene ${servicioDemo.nombre.toLowerCase()}?`,
+  `quiero ${servicioDemo.nombre.toLowerCase()} el ${sumarDias(claveDia(zona, ahora), 3)} por la mañana`,
   'la primera',
   'sí, confirmo',
   'me llamo Rocío',
@@ -97,10 +100,10 @@ console.log(gris(`   La conversación pasa a "${queja.conversacion.estado}": el 
 console.log(`\n${negrita('5. Una hora inventada no cuela')}`);
 const inventada = await contestar({
   db, config, canal: 'simulador', externo: 'prueba-inventada',
-  texto: `quiero un corte el ${sumarDias(claveDia(zona, ahora), 3)} a las 04:00`,
+  texto: `quiero ${servicioDemo.nombre.toLowerCase()} el ${sumarDias(claveDia(zona, ahora), 3)} a las 04:00`,
   contacto: { telefono: '+34600999112' }, ahora,
 });
-console.log(`   ${gris('cliente >')} un corte a las 04:00`);
+console.log(`   ${gris('cliente >')} ${servicioDemo.nombre.toLowerCase()} a las 04:00`);
 console.log(`   ${verde('bot     >')} ${inventada.texto}`);
 
 console.log(`\n${gris('Fin. Para verlo con panel:  node arrancar.js')}\n`);

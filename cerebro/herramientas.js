@@ -196,6 +196,25 @@ export function ejecutar(nombre, entrada = {}, ctx) {
           limite: config.reglas.huecosQueOfrece ?? 4,
         });
         if (huecos.length === 0) {
+          // Caso frecuente: ese día sí hay huecos, pero no en la franja que
+          // pide. Decir "no queda nada" y ofrecerle las 18:45 es contradecirse.
+          if (entrada.franja && desde) {
+            const fueraDeFranja = buscarHuecos(db, config, {
+              servicioId: servicio.id, desde, dias: 1, recursoId: recurso?.id ?? null, ahora,
+              limite: config.reglas.huecosQueOfrece ?? 4,
+            }).huecos;
+            if (fueraDeFranja.length) {
+              const cuando = redaccion.cuandoRelativo(config, fueraDeFranja[0].inicio, ahora);
+              return {
+                ok: true,
+                servicio: servicio.nombre,
+                huecos: [],
+                fueraDeFranja: fueraDeFranja.map((h) => huecoLegible(config, h)),
+                _huecos: fueraDeFranja,
+                resumen: `${redaccion.franjaDicha(entrada.franja) ?? 'A esa hora'} no me queda nada ${cuando}, pero sí tengo ${redaccion.enumerar(fueraDeFranja.map((h) => h.hora))}. ¿Te sirve alguna?`,
+              };
+            }
+          }
           const porQuePrevio = desde
             ? porQueNoHayHuecos(config, { clave: desde, servicio, recurso })
             : { motivo: 'lleno' };

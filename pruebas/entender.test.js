@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as e from '../cerebro/entender.js';
-import { negocioDePrueba, ZONA, AHORA, LUNES, MARTES } from './ayuda.js';
+import { negocioDePrueba, plantilla, ZONA, AHORA, LUNES, MARTES } from './ayuda.js';
+import { revisarConfig } from '../nucleo/config.js';
 
 const opciones = { zona: ZONA, ahora: AHORA }; // viernes 21 de agosto de 2026
 
@@ -120,6 +121,14 @@ test('detecta cuando hay que apartarse', () => {
   assert.equal(e.detectarIntencion('quiero poner una reclamación'), 'escalar');
   assert.equal(e.detectarIntencion('quiero hablar con una persona'), 'escalar');
   assert.equal(e.detectarIntencion('esto es una estafa'), 'escalar');
+});
+
+test('un servicio que se llama como un verbo no confunde la intención', () => {
+  const { config } = revisarConfig(plantilla('taller'));
+  assert.equal(e.detectarIntencion('quiero un cambio de aceite el martes', config), 'reservar');
+  assert.equal(e.detectarIntencion('¿qué precio tiene el cambio de aceite?', config), 'precio');
+  assert.equal(e.detectarIntencion('quiero cambiar la cita del cambio de aceite', config), 'mover');
+  assert.equal(e.detectarIntencion('un cambio de aceite', config), 'reservar');
 });
 
 test('distingue un sí de un no', () => {

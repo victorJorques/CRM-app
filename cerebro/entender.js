@@ -236,14 +236,34 @@ const PATRONES = [
   ['gracias', /\b(gracias|muchas gracias|genial|perfecto|de acuerdo)\b/],
 ];
 
-export function detectarIntencion(texto) {
-  const t = limpiar(texto);
-  if (!t) return 'vacio';
-  if (esAfirmacion(t)) return 'confirmar';
-  if (esNegacion(t)) return 'rechazar';
+/**
+ * Quita del texto el nombre del servicio antes de mirar que quiere el
+ * cliente. Hace falta de verdad: en un taller, "cambio de aceite" lleva la
+ * palabra "cambio" dentro, y sin esto "quiero un cambio de aceite" se
+ * entiende como "quiero cambiar mi cita".
+ */
+function sinElNombreDelServicio(t, config) {
+  const servicio = resolverServicio(config, t);
+  if (!servicio) return t;
+  let limpio = t;
+  for (const etiqueta of [servicio.nombre, ...servicio.alias, servicio.id.replace(/-/g, ' ')]) {
+    const limpia = limpiar(etiqueta);
+    if (limpia.length > 2) limpio = limpio.split(limpia).join(' ');
+  }
+  return limpio.replace(/\s+/g, ' ').trim();
+}
+
+export function detectarIntencion(texto, config = null) {
+  const bruto = limpiar(texto);
+  if (!bruto) return 'vacio';
+  if (esAfirmacion(bruto)) return 'confirmar';
+  if (esNegacion(bruto)) return 'rechazar';
+  const t = config ? sinElNombreDelServicio(bruto, config) : bruto;
   for (const [nombre, patron] of PATRONES) {
     if (patron.test(t)) return nombre;
   }
+  // Si al quitar el servicio no queda nada que interpretar, es que pedia cita.
+  if (config && t !== bruto && resolverServicio(config, texto)) return 'reservar';
   return 'otro';
 }
 

@@ -9,7 +9,7 @@
   },
   "vocabulario": {
     "cita": "cita", "citas": "citas",
-    "recurso": "elevador", "recursos": "elevadores"
+    "recurso": "elevador", "recursos": "elevadores", "conRecurso": "en el"
   },
   "horario": {
     "lunes": [["08:00", "13:30"], ["15:00", "18:30"]],
@@ -25,7 +25,7 @@
     { "nombre": "Cambio de aceite", "duracionMinutos": 60, "precio": 75, "alias": ["aceite", "filtros"] },
     { "nombre": "Revisión pre-ITV", "duracionMinutos": 60, "precio": 45, "alias": ["itv", "pre itv"] },
     { "nombre": "Frenos", "duracionMinutos": 120, "precio": 160, "alias": ["pastillas", "discos"] },
-    { "nombre": "Neumáticos", "duracionMinutos": 45, "precio": 0, "alias": ["ruedas", "neumaticos"] },
+    { "nombre": "Neumáticos", "duracionMinutos": 45, "precio": null, "alias": ["ruedas", "neumaticos"] },
     { "nombre": "Diagnosis", "duracionMinutos": 45, "precio": 40, "alias": ["testigo", "avería", "averia"] }
   ],
   "recursos": [

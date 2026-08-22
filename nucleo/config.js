@@ -9,7 +9,7 @@ import { NOMBRES_DIAS, minutosDeHora, horaDeMinutos, esClaveDia } from './tiempo
 
 const VOCABULARIO_BASE = {
   cita: 'cita', citas: 'citas', laCita: 'la cita',
-  recurso: 'profesional', recursos: 'profesionales',
+  recurso: 'profesional', recursos: 'profesionales', conRecurso: 'con',
   cliente: 'cliente', clientes: 'clientes',
   servicio: 'servicio', servicios: 'servicios',
   reservar: 'reservar', atendida: 'atendida',

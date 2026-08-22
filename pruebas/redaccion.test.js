@@ -104,6 +104,14 @@ test('el vocabulario del negocio se nota en lo que dice', () => {
   assert.match(texto, /Anulada la visita/);
 });
 
+test('cada negocio dice "con Ana" o "en el elevador 2", según toque', () => {
+  const { config: taller } = revisarConfig(plantilla('taller'));
+  const texto = r.confirmacion(taller, {
+    servicio_nombre: 'Cambio de aceite', recurso_nombre: 'Elevador 1', inicio: instante(LUNES, 10),
+  }, { nombre: 'Rocío' });
+  assert.match(texto, /en el Elevador 1/);
+});
+
 test('el resumen de la ficha cabe en una línea', () => {
   const texto = r.fichaResumen(config, {
     nombre: 'Rocío', telefono: '+34600111222', atendidas: 3, gastoCentimos: 6000, noVino: 1,

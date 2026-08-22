@@ -67,6 +67,19 @@ test('buscar_huecos explica que ese día está cerrado', () => {
   assert.match(r.resumen, /no abrimos/i);
 });
 
+test('si no hay nada en esa franja, no dice que el día esté vacío', () => {
+  const ctx = contexto();
+  // Se llena la mañana del lunes entera con tintes de una hora.
+  for (const hora of [9, 10, 11, 12, 13]) {
+    ejecutar('reservar', { servicio: 'tinte', dia: LUNES, hora: `${hora}:00` }, ctx);
+  }
+  const r = ejecutar('buscar_huecos', { servicio: 'tinte', dia: LUNES, franja: 'manana' }, ctx);
+  assert.equal(r.huecos.length, 0);
+  assert.match(r.resumen, /Por la mañana no me queda nada/);
+  assert.ok(r.fueraDeFranja.length > 0);
+  assert.ok(r.fueraDeFranja.every((h) => Number(h.hora.slice(0, 2)) >= 14));
+});
+
 test('buscar_huecos dice quién sí hace el servicio', () => {
   const ctx = contexto();
   const r = ejecutar('buscar_huecos', { servicio: 'tinte', dia: MARTES, recurso: 'Luis' }, ctx);

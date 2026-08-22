@@ -81,7 +81,8 @@ export function propuesta(config, { servicio, hueco, ahora = Date.now() }) {
   const zona = config.negocio.zonaHoraria;
   const precio = precioServicio(config, servicio);
   const cuando = `${cuandoRelativo(config, hueco.inicio, ahora)} a las ${hora(zona, hueco.inicio)}`;
-  const con = config.recursos.filter((r) => r.activo).length > 1 ? ` con ${hueco.recursoNombre}` : '';
+  const con = config.recursos.filter((r) => r.activo).length > 1
+    ? ` ${config.vocabulario.conRecurso ?? 'con'} ${hueco.recursoNombre}` : '';
   return `Perfecto: ${servicio.nombre.toLowerCase()}${con} ${cuando}${precio ? `, ${precio}` : ''}. ¿Te ${config.vocabulario.laCita === 'la cita' ? 'la' : 'la'} confirmo?`;
 }
 
@@ -90,7 +91,7 @@ export function confirmacion(config, cita, { nombre = '', conRecordatorio = true
   const zona = config.negocio.zonaHoraria;
   const varios = config.recursos.filter((r) => r.activo).length > 1;
   const partes = [
-    `Hecho${nombre ? `, ${nombre.split(' ')[0]}` : ''}: ${cita.servicio_nombre}${varios ? ` con ${cita.recurso_nombre}` : ''}, ${fechaYHora(zona, cita.inicio)}.`,
+    `Hecho${nombre ? `, ${nombre.split(' ')[0]}` : ''}: ${cita.servicio_nombre}${varios ? ` ${config.vocabulario.conRecurso ?? 'con'} ${cita.recurso_nombre}` : ''}, ${fechaYHora(zona, cita.inicio)}.`,
   ];
   if (conRecordatorio && config.recordatorios.vispera) {
     partes.push('Te mando un recordatorio el día de antes.');
@@ -137,7 +138,7 @@ export function escalado(config) {
 export function recordatorioVispera(config, cita) {
   const zona = config.negocio.zonaHoraria;
   const varios = config.recursos.filter((r) => r.activo).length > 1;
-  return `Recordatorio de ${config.negocio.nombre}: ${cita.servicio_nombre}${varios ? ` con ${cita.recurso_nombre}` : ''} mañana a las ${hora(zona, cita.inicio)}. Si no te viene bien, dímelo y lo cambiamos.`;
+  return `Recordatorio de ${config.negocio.nombre}: ${cita.servicio_nombre}${varios ? ` ${config.vocabulario.conRecurso ?? 'con'} ${cita.recurso_nombre}` : ''} mañana a las ${hora(zona, cita.inicio)}. Si no te viene bien, dímelo y lo cambiamos.`;
 }
 
 export function mensajeNoVino(config, cita) {
@@ -159,4 +160,17 @@ export function fichaResumen(config, ficha) {
   if (ficha.gastoCentimos) partes.push(`${dinero(config, ficha.gastoCentimos)} en total`);
   if (ficha.noVino) partes.push(`${ficha.noVino} ${ficha.noVino === 1 ? 'ausencia' : 'ausencias'}`);
   return partes.join(' · ');
+}
+
+const FRANJAS_DICHAS = {
+  manana: 'Por la mañana',
+  tarde: 'Por la tarde',
+  noche: 'Por la noche',
+  mediodia: 'A mediodía',
+  temprano: 'A primera hora',
+};
+
+/** 'manana' -> 'Por la mañana'. */
+export function franjaDicha(franja) {
+  return FRANJAS_DICHAS[franja] ?? null;
 }

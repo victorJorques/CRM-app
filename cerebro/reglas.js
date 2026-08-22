@@ -42,7 +42,7 @@ export function responder(texto, ctx) {
   });
 
   const t = limpiar(texto);
-  const intencion = detectarIntencion(texto);
+  const intencion = detectarIntencion(texto, config);
   const ficha = ctx.conversacion?.cliente_id ? clientes.porId(db, ctx.conversacion.cliente_id) : null;
 
   // --- 0. Lo que no es del bot: quejas y peticiones de hablar con alguien ---
