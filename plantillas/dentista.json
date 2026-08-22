@@ -1,0 +1,42 @@
+{
+  "negocio": {
+    "nombre": "Clínica Dental Sonrisa",
+    "tipo": "clinica",
+    "zonaHoraria": "Europe/Madrid",
+    "telefono": "+34600000000",
+    "direccion": "Avenida de la Salud 12, Valencia",
+    "moneda": "EUR"
+  },
+  "vocabulario": {
+    "cita": "visita", "citas": "visitas", "laCita": "la visita",
+    "recurso": "doctor", "recursos": "doctores",
+    "cliente": "paciente", "clientes": "pacientes"
+  },
+  "horario": {
+    "lunes": [["09:00", "14:00"], ["15:30", "20:00"]],
+    "martes": [["09:00", "14:00"], ["15:30", "20:00"]],
+    "miercoles": [["09:00", "14:00"], ["15:30", "20:00"]],
+    "jueves": [["09:00", "14:00"], ["15:30", "20:00"]],
+    "viernes": [["09:00", "15:00"]],
+    "sabado": [],
+    "domingo": []
+  },
+  "reglas": {
+    "granularidadMinutos": 15,
+    "antelacionMinimaHoras": 12,
+    "cancelacionMinimaHoras": 48,
+    "margenEntreCitasMinutos": 5
+  },
+  "servicios": [
+    { "nombre": "Primera visita", "duracionMinutos": 30, "precio": 0, "alias": ["revisión", "revision", "chequeo"] },
+    { "nombre": "Limpieza", "duracionMinutos": 45, "precio": 60, "alias": ["higiene", "limpieza bucal"] },
+    { "nombre": "Empaste", "duracionMinutos": 45, "precio": 70, "alias": ["caries"] },
+    { "nombre": "Endodoncia", "duracionMinutos": 90, "precio": 180, "recursos": ["dra-gomez"] },
+    { "nombre": "Urgencia", "duracionMinutos": 30, "precio": 40, "alias": ["me duele", "dolor"] }
+  ],
+  "recursos": [
+    { "nombre": "Dra. Gómez" },
+    { "nombre": "Dr. Ruiz" }
+  ],
+  "recordatorios": { "vispera": true, "visperaHora": "17:00", "seguimientoInactivosDias": 180 }
+}

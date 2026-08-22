@@ -1,0 +1,25 @@
+{
+  "negocio": {
+    "nombre": "Mi negocio",
+    "tipo": "general",
+    "zonaHoraria": "Europe/Madrid",
+    "telefono": "",
+    "direccion": "",
+    "moneda": "EUR"
+  },
+  "horario": {
+    "lunes": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "martes": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "miercoles": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "jueves": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "viernes": [["09:00", "14:00"]],
+    "sabado": [],
+    "domingo": []
+  },
+  "reglas": { "granularidadMinutos": 30, "antelacionMinimaHoras": 2, "cancelacionMinimaHoras": 24 },
+  "servicios": [
+    { "nombre": "Cita", "duracionMinutos": 30, "precio": null }
+  ],
+  "recursos": [],
+  "recordatorios": { "vispera": true, "visperaHora": "18:00", "seguimientoInactivosDias": 0 }
+}

@@ -1,0 +1,35 @@
+{
+  "negocio": {
+    "nombre": "Asesoría Peña",
+    "tipo": "asesoria",
+    "zonaHoraria": "Europe/Madrid",
+    "telefono": "+34600000000",
+    "direccion": "Gran Vía 40, Zaragoza",
+    "moneda": "EUR"
+  },
+  "vocabulario": {
+    "cita": "reunión", "citas": "reuniones", "laCita": "la reunión",
+    "recurso": "asesor", "recursos": "asesores"
+  },
+  "horario": {
+    "lunes": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "martes": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "miercoles": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "jueves": [["09:00", "14:00"], ["16:00", "19:00"]],
+    "viernes": [["09:00", "14:00"]],
+    "sabado": [],
+    "domingo": []
+  },
+  "reglas": { "granularidadMinutos": 30, "antelacionMinimaHoras": 24, "cancelacionMinimaHoras": 24 },
+  "servicios": [
+    { "nombre": "Consulta inicial", "duracionMinutos": 30, "precio": 0, "alias": ["primera consulta"] },
+    { "nombre": "Declaración de la renta", "duracionMinutos": 60, "precio": 90, "alias": ["renta", "irpf"] },
+    { "nombre": "Alta de autónomo", "duracionMinutos": 45, "precio": 60, "alias": ["autonomo", "darme de alta"] },
+    { "nombre": "Revisión trimestral", "duracionMinutos": 45, "precio": 75, "alias": ["trimestre", "iva"] }
+  ],
+  "recursos": [
+    { "nombre": "Carmen" },
+    { "nombre": "Jorge" }
+  ],
+  "recordatorios": { "vispera": true, "visperaHora": "18:00", "seguimientoInactivosDias": 200 }
+}

@@ -1,0 +1,9 @@
+node_modules/
+.env
+datos/*.db
+datos/*.db-journal
+datos/*.db-wal
+datos/*.db-shm
+conserje.config.json
+*.log
+.DS_Store

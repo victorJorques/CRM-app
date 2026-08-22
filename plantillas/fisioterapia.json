@@ -1,0 +1,36 @@
+{
+  "negocio": {
+    "nombre": "Fisio Center",
+    "tipo": "fisioterapia",
+    "zonaHoraria": "Europe/Madrid",
+    "telefono": "+34600000000",
+    "direccion": "Calle del Puerto 8, Bilbao",
+    "moneda": "EUR"
+  },
+  "vocabulario": {
+    "cita": "sesión", "citas": "sesiones", "laCita": "la sesión",
+    "recurso": "fisio", "recursos": "fisios",
+    "cliente": "paciente", "clientes": "pacientes"
+  },
+  "horario": {
+    "lunes": [["08:00", "21:00"]],
+    "martes": [["08:00", "21:00"]],
+    "miercoles": [["08:00", "21:00"]],
+    "jueves": [["08:00", "21:00"]],
+    "viernes": [["08:00", "20:00"]],
+    "sabado": [["09:00", "13:00"]],
+    "domingo": []
+  },
+  "reglas": { "granularidadMinutos": 30, "antelacionMinimaHoras": 2, "cancelacionMinimaHoras": 24, "margenEntreCitasMinutos": 10 },
+  "servicios": [
+    { "nombre": "Primera sesión", "duracionMinutos": 60, "precio": 50, "alias": ["valoración", "valoracion"] },
+    { "nombre": "Sesión de seguimiento", "duracionMinutos": 45, "precio": 40, "alias": ["seguimiento", "sesion"] },
+    { "nombre": "Punción seca", "duracionMinutos": 45, "precio": 45, "alias": ["puncion", "agujas"], "recursos": ["marta"] },
+    { "nombre": "Suelo pélvico", "duracionMinutos": 60, "precio": 55, "recursos": ["marta"] }
+  ],
+  "recursos": [
+    { "nombre": "Marta" },
+    { "nombre": "Iván" }
+  ],
+  "recordatorios": { "vispera": true, "visperaHora": "19:00", "seguimientoInactivosDias": 90 }
+}

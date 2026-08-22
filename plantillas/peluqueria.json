@@ -1,0 +1,40 @@
+{
+  "negocio": {
+    "nombre": "Peluquería Ana",
+    "tipo": "peluqueria",
+    "zonaHoraria": "Europe/Madrid",
+    "telefono": "+34600000000",
+    "direccion": "Calle Mayor 1, Madrid",
+    "moneda": "EUR"
+  },
+  "vocabulario": {
+    "recurso": "profesional",
+    "recursos": "profesionales"
+  },
+  "horario": {
+    "lunes": [["09:00", "14:00"], ["16:00", "20:00"]],
+    "martes": [["09:00", "14:00"], ["16:00", "20:00"]],
+    "miercoles": [["09:00", "14:00"], ["16:00", "20:00"]],
+    "jueves": [["09:00", "14:00"], ["16:00", "20:30"]],
+    "viernes": [["09:00", "20:30"]],
+    "sabado": [["09:00", "14:00"]],
+    "domingo": []
+  },
+  "reglas": {
+    "granularidadMinutos": 15,
+    "antelacionMinimaHoras": 2,
+    "cancelacionMinimaHoras": 24
+  },
+  "servicios": [
+    { "nombre": "Corte", "duracionMinutos": 30, "precio": 18, "alias": ["cortar", "corte de pelo", "pelarme"] },
+    { "nombre": "Corte y barba", "duracionMinutos": 45, "precio": 25, "alias": ["barba"] },
+    { "nombre": "Tinte", "duracionMinutos": 90, "precio": 55, "alias": ["teñir", "color"], "recursos": ["ana"] },
+    { "nombre": "Mechas", "duracionMinutos": 120, "precio": 85, "alias": ["mechitas", "balayage"], "recursos": ["ana"] },
+    { "nombre": "Peinado", "duracionMinutos": 30, "precio": 20, "alias": ["recogido"] }
+  ],
+  "recursos": [
+    { "nombre": "Ana" },
+    { "nombre": "Luis", "horario": { "lunes": [], "martes": [["09:00", "14:00"], ["16:00", "20:00"]], "miercoles": [["09:00", "14:00"], ["16:00", "20:00"]], "jueves": [["09:00", "14:00"], ["16:00", "20:30"]], "viernes": [["09:00", "20:30"]], "sabado": [["09:00", "14:00"]], "domingo": [] } }
+  ],
+  "recordatorios": { "vispera": true, "visperaHora": "18:00", "seguimientoInactivosDias": 120 }
+}

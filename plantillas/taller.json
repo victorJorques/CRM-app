@@ -1,0 +1,37 @@
+{
+  "negocio": {
+    "nombre": "Talleres Vega",
+    "tipo": "taller",
+    "zonaHoraria": "Europe/Madrid",
+    "telefono": "+34600000000",
+    "direccion": "Polígono Norte, nave 4, Sevilla",
+    "moneda": "EUR"
+  },
+  "vocabulario": {
+    "cita": "cita", "citas": "citas",
+    "recurso": "elevador", "recursos": "elevadores"
+  },
+  "horario": {
+    "lunes": [["08:00", "13:30"], ["15:00", "18:30"]],
+    "martes": [["08:00", "13:30"], ["15:00", "18:30"]],
+    "miercoles": [["08:00", "13:30"], ["15:00", "18:30"]],
+    "jueves": [["08:00", "13:30"], ["15:00", "18:30"]],
+    "viernes": [["08:00", "14:00"]],
+    "sabado": [],
+    "domingo": []
+  },
+  "reglas": { "granularidadMinutos": 30, "antelacionMinimaHoras": 4, "cancelacionMinimaHoras": 12 },
+  "servicios": [
+    { "nombre": "Cambio de aceite", "duracionMinutos": 60, "precio": 75, "alias": ["aceite", "filtros"] },
+    { "nombre": "Revisión pre-ITV", "duracionMinutos": 60, "precio": 45, "alias": ["itv", "pre itv"] },
+    { "nombre": "Frenos", "duracionMinutos": 120, "precio": 160, "alias": ["pastillas", "discos"] },
+    { "nombre": "Neumáticos", "duracionMinutos": 45, "precio": 0, "alias": ["ruedas", "neumaticos"] },
+    { "nombre": "Diagnosis", "duracionMinutos": 45, "precio": 40, "alias": ["testigo", "avería", "averia"] }
+  ],
+  "recursos": [
+    { "nombre": "Elevador 1" },
+    { "nombre": "Elevador 2" },
+    { "nombre": "Foso", "horario": { "lunes": [["08:00", "13:30"]], "martes": [["08:00", "13:30"]], "miercoles": [["08:00", "13:30"]], "jueves": [["08:00", "13:30"]], "viernes": [["08:00", "13:30"]], "sabado": [], "domingo": [] } }
+  ],
+  "recordatorios": { "vispera": true, "visperaHora": "18:00", "seguimientoInactivosDias": 365 }
+}

@@ -1,0 +1,18 @@
+{
+  "name": "conserje",
+  "version": "0.2.0",
+  "description": "CRM con recepcionista dentro: coge las citas, lleva las fichas y contesta por WhatsApp, correo y telefono.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "start": "node arrancar.js",
+    "configurar": "node configurar.js",
+    "sembrar": "node sembrar.js",
+    "demo": "node demo.js",
+    "test": "node --test pruebas/"
+  },
+  "dependencies": {}
+}
