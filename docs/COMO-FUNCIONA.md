@@ -63,6 +63,10 @@ Ambos usan las mismas nueve herramientas de `cerebro/herramientas.js`
   una sola vez y se reparte hacia quien menos carga tiene ese día. El resto
   queda en `alternativas`.
 - `capacidad` en un recurso permite atender a varios a la vez (mesas, salas).
+- Hay dos formas de cerrar: `cierres` para el negocio entero y `ausencias`
+  dentro de cada recurso para las vacaciones o la baja de uno solo. Las citas
+  ya puestas **no** se borran al declarar unas vacaciones: siguen en la agenda
+  para que alguien las mueva a mano, que es lo que hay que hacer.
 - Si una conversación pasa a `humano`, el cerebro no vuelve a hablar en ella
   hasta que alguien la devuelva al bot desde el panel.
 - Los mensajes entrantes se guardan **siempre**, aunque el bot calle.
@@ -92,7 +96,7 @@ ocurre en producción.
 ## Probar
 
 ```
-npm test            # 267 pruebas, sin red
+npm test            # 295 pruebas, sin red
 node demo.js        # el sistema entero en la terminal, base en memoria
 node demo.js plantillas/taller.json   # con otro tipo de negocio
 ```

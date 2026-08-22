@@ -144,6 +144,27 @@ function normalizarServicio(bruto, indice, errores) {
   };
 }
 
+/** Periodos de días con motivo: cierres del negocio, vacaciones de alguien. */
+function normalizarTramosDeDias(valor, errores, donde, motivoPorDefecto) {
+  const periodos = [];
+  for (const periodo of Array.isArray(valor) ? valor : []) {
+    if (!esClaveDia(periodo?.desde) || !esClaveDia(periodo?.hasta)) {
+      errores.push(`${donde}: cada uno necesita "desde" y "hasta" con formato 2026-08-01.`);
+      continue;
+    }
+    if (periodo.hasta < periodo.desde) {
+      errores.push(`${donde}: el que empieza el ${periodo.desde} termina antes, el ${periodo.hasta}.`);
+      continue;
+    }
+    periodos.push({
+      desde: periodo.desde,
+      hasta: periodo.hasta,
+      motivo: String(periodo.motivo ?? motivoPorDefecto),
+    });
+  }
+  return periodos;
+}
+
 function normalizarRecurso(bruto, indice, errores) {
   const donde = `${'recurso'} ${indice + 1}${bruto?.nombre ? ` ("${bruto.nombre}")` : ''}`;
   if (typeof bruto !== 'object' || bruto === null) {
@@ -161,6 +182,9 @@ function normalizarRecurso(bruto, indice, errores) {
     nombre,
     capacidad: Number.isInteger(capacidad) && capacidad > 0 ? capacidad : 1,
     horario: normalizarHorario(bruto.horario, errores, `${donde} → horario`),
+    // Vacaciones, bajas, cursos: días en los que esta persona (o esta silla)
+    // no está, aunque el negocio abra.
+    ausencias: normalizarTramosDeDias(bruto.ausencias, errores, `${donde} → ausencias`, 'no está'),
     activo: bruto.activo !== false,
   };
 }
@@ -199,7 +223,7 @@ export function revisarConfig(bruta) {
   const recursosBrutos = Array.isArray(bruta.recursos) ? bruta.recursos : [];
   const recursos = recursosBrutos.map((r, i) => normalizarRecurso(r, i, errores)).filter(Boolean);
   if (recursos.length === 0) {
-    recursos.push({ id: 'general', nombre: nombre || 'General', capacidad: 1, horario: null, activo: true });
+    recursos.push({ id: 'general', nombre: nombre || 'General', capacidad: 1, horario: null, ausencias: [], activo: true });
     avisos.push('No hay recursos declarados: se usa uno solo, con el horario del negocio.');
   }
 
@@ -230,18 +254,7 @@ export function revisarConfig(bruta) {
     if (!esClaveDia(festivo)) errores.push(`festivos: "${festivo}" no es una fecha con formato 2026-12-25.`);
   }
 
-  const cierres = [];
-  for (const cierre of Array.isArray(bruta.cierres) ? bruta.cierres : []) {
-    if (!esClaveDia(cierre?.desde) || !esClaveDia(cierre?.hasta)) {
-      errores.push('cierres: cada cierre necesita "desde" y "hasta" con formato 2026-08-01.');
-      continue;
-    }
-    if (cierre.hasta < cierre.desde) {
-      errores.push(`cierres: el que empieza el ${cierre.desde} termina antes, el ${cierre.hasta}.`);
-      continue;
-    }
-    cierres.push({ desde: cierre.desde, hasta: cierre.hasta, motivo: String(cierre.motivo ?? 'cerrado') });
-  }
+  const cierres = normalizarTramosDeDias(bruta.cierres, errores, 'cierres', 'cerrado');
 
   const reglas = { ...REGLAS_BASE, ...(bruta.reglas ?? {}) };
   if (!Number.isFinite(reglas.granularidadMinutos) || reglas.granularidadMinutos < 1) {
@@ -324,6 +337,11 @@ export function horarioDe(config, recurso, dia) {
 export function esFestivo(config, clave) {
   if (config.festivos.includes(clave)) return true;
   return config.cierres.some((c) => clave >= c.desde && clave <= c.hasta);
+}
+
+/** ¿Está fuera ese día esta persona (o esta silla)? */
+export function ausencia(recurso, clave) {
+  return (recurso?.ausencias ?? []).find((a) => clave >= a.desde && clave <= a.hasta) ?? null;
 }
 
 export function motivoCierre(config, clave) {

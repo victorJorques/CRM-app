@@ -33,7 +33,7 @@
     { "nombre": "Peinado", "duracionMinutos": 30, "precio": 20, "alias": ["recogido"] }
   ],
   "recursos": [
-    { "nombre": "Ana" },
+    { "nombre": "Ana", "ausencias": [{ "desde": "2026-09-07", "hasta": "2026-09-13", "motivo": "vacaciones" }] },
     { "nombre": "Luis", "horario": { "lunes": [], "martes": [["09:00", "14:00"], ["16:00", "20:00"]], "miercoles": [["09:00", "14:00"], ["16:00", "20:00"]], "jueves": [["09:00", "14:00"], ["16:00", "20:30"]], "viernes": [["09:00", "20:30"]], "sabado": [["09:00", "14:00"]], "domingo": [] } }
   ],
   "recordatorios": { "vispera": true, "visperaHora": "18:00", "seguimientoInactivosDias": 120 }

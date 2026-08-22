@@ -97,7 +97,8 @@ async function cargarAgenda() {
     <div class="cifra"><b>${dia.abierto ? 'Abierto' : 'Cerrado'}</b><span>${dia.motivoCierre ?? fechaDe(Date.parse(`${diaActual}T12:00:00Z`))}</span></div>`;
 
   $('#agenda').innerHTML = dia.recursos.map((recurso) => {
-    const tramos = recurso.tramos.map((t) => t.join('–')).join(' · ') || 'no trabaja';
+    const tramos = recurso.tramos.map((t) => t.join('–')).join(' · ')
+      || (recurso.ausencia ? escapar(recurso.ausencia) : 'no trabaja');
     const citas = recurso.citas.length
       ? recurso.citas.map(pintarCita).join('')
       : '<p class="vacio">Sin citas.</p>';

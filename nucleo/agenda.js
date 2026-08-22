@@ -8,7 +8,7 @@ import {
   claveDia, diaSemana, instanteDe, sumarDias, diasEntre, hora, horaDeMinutos,
 } from './tiempo.js';
 import {
-  servicioPorId, recursoPorId, recursosDe, horarioDe, esFestivo, motivoCierre, sinTildes,
+  servicioPorId, recursoPorId, recursosDe, horarioDe, esFestivo, motivoCierre, ausencia, sinTildes,
 } from './config.js';
 
 export const ESTADOS_ACTIVOS = ['reservada', 'confirmada', 'atendida'];
@@ -58,6 +58,7 @@ function cabeEnElRecurso(db, config, { recurso, inicio, minutos, excluir }) {
 /** Tramos de trabajo (en minutos desde medianoche) de un recurso ese dia. */
 export function tramosDe(config, recurso, clave) {
   if (esFestivo(config, clave)) return [];
+  if (ausencia(recurso, clave)) return [];      // de vacaciones, de baja, fuera
   return horarioDe(config, recurso, diaSemana(config.negocio.zonaHoraria, clave));
 }
 
@@ -249,7 +250,23 @@ export function porQueNoHayHuecos(config, { clave, servicio = null, recurso = nu
   const candidatos = recurso ? [recurso] : recursosDe(config, servicio);
   const trabajando = candidatos.filter((r) => tramosDe(config, r, clave).length > 0);
   if (trabajando.length === 0) {
-    if (recurso) return { motivo: 'recurso-libra', detalle: recurso.nombre };
+    if (recurso) {
+      const fuera = ausencia(recurso, clave);
+      if (fuera) return { motivo: 'recurso-ausente', detalle: recurso.nombre, razon: fuera.motivo };
+      return { motivo: 'recurso-libra', detalle: recurso.nombre };
+    }
+    // Si a quien lo hace le tocaba estar y está fuera, eso es lo que hay que
+    // contar: "Ana está de vacaciones", no "no hay nadie".
+    const ausentes = candidatos
+      .map((r) => ({ recurso: r, fuera: ausencia(r, clave) }))
+      .filter((x) => x.fuera);
+    if (ausentes.length && ausentes.length === candidatos.length) {
+      return {
+        motivo: 'recurso-ausente',
+        detalle: ausentes.map((x) => x.recurso.nombre).join(' y '),
+        razon: ausentes[0].fuera.motivo,
+      };
+    }
     const alguien = config.recursos.filter((r) => r.activo)
       .some((r) => tramosDe(config, r, clave).length > 0);
     return alguien
@@ -281,6 +298,7 @@ export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
       id: recurso.id,
       nombre: recurso.nombre,
       tramos: tramosDe(config, recurso, clave).map(([d, h]) => [horaDeMinutos(d), horaDeMinutos(h)]),
+      ausencia: ausencia(recurso, clave)?.motivo ?? null,
       citas: citas.filter((c) => c.recurso_id === recurso.id),
     })),
     total: activas.length,

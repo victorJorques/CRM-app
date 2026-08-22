@@ -224,7 +224,8 @@ export function ejecutar(nombre, entrada = {}, ctx) {
             : { motivo: 'lleno' };
           // Si el problema es quien lo hace, se busca con quien SI lo hace:
           // "Luis no hace mechas, las hace Ana; el lunes tengo..."
-          const sinRecurso = porQuePrevio.motivo === 'recurso-no-hace';
+          const sinRecurso = porQuePrevio.motivo === 'recurso-no-hace'
+            || porQuePrevio.motivo === 'recurso-ausente';
           const masAdelante = (entrada.dia || sinRecurso)
             ? buscarHuecos(db, config, {
               servicioId: servicio.id,
@@ -241,6 +242,9 @@ export function ejecutar(nombre, entrada = {}, ctx) {
             festivo: `Ese día está cerrado${porQue.detalle && porQue.detalle !== 'festivo' ? ` (${porQue.detalle})` : ''}.`,
             cerrado: 'Ese día no abrimos.',
             'recurso-libra': `${porQue.detalle} no trabaja ese día.`,
+            // "está vacaciones" no lo dice nadie: el motivo va entre paréntesis y
+            // así vale igual para "de baja", "en un curso" o lo que pongan.
+            'recurso-ausente': `${porQue.detalle} no está esos días${porQue.razon ? ` (${porQue.razon})` : ''}.`,
             'recurso-no-hace': `${porQue.detalle} no hace ${servicio.nombre.toLowerCase()}: ${quienLoHace.length === 1 ? `lo hace ${quienLoHace[0]}` : `lo hacen ${quienLoHace.join(' y ')}`}.`,
             'servicio-sin-nadie': `Ese día no hay nadie que haga ${servicio.nombre.toLowerCase()}.`,
             lleno: `Ese día no queda nada para ${servicio.nombre.toLowerCase()}.`,

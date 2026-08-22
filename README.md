@@ -26,7 +26,7 @@ dentro de Node.
 | **Agenda** | Por día y por persona (o silla, box, mesa, elevador…). Crear, mover, anular, marcar quién vino y quién no. |
 | **Fichas de cliente** | Se crean solas con el primer mensaje. Historial, gasto acumulado, ausencias y notas internas. |
 | **Bandeja única** | WhatsApp, correo, llamadas y panel en la misma lista. Si entras tú a contestar, el bot se aparta. |
-| **Motor de huecos** | Horarios partidos, festivos, cierres por vacaciones, duración y margen por servicio, varios recursos, y el fin de semana en que cambia la hora. |
+| **Motor de huecos** | Horarios partidos, festivos, cierres del negocio, vacaciones o bajas de una sola persona, duración y margen por servicio, varios recursos, y el fin de semana en que cambia la hora. |
 | **Recordatorios** | Aviso la víspera, repesca de quien no vino y lista de quien lleva meses sin aparecer. |
 | **Simulador** | Escríbele como si fueras un cliente. Lo que pasa ahí es real y queda guardado. |
 | **Cerrado por fuera** | Panel con clave y sesión firmada, webhooks con firma comprobada, y por correo no se toca una cita si el remitente no cuadra. |
@@ -72,11 +72,14 @@ Todo lo que distingue un negocio de otro vive en `conserje.config.json`:
   "vocabulario": { "cita": "cita", "recurso": "profesional" },   // o "visita"/"doctor", "sesión"/"fisio"…
   "horario":  { "lunes": [["09:00","14:00"], ["16:00","20:00"]], "domingo": [] },
   "festivos": ["2026-12-25"],
-  "cierres":  [{ "desde": "2026-08-01", "hasta": "2026-08-15", "motivo": "vacaciones" }],
+  "cierres":  [{ "desde": "2026-08-01", "hasta": "2026-08-15", "motivo": "vacaciones" }],   // cierra el negocio
   "servicios": [
     { "nombre": "Mechas", "duracionMinutos": 120, "precio": 85, "recursos": ["ana"] }
   ],
-  "recursos": [{ "nombre": "Ana" }, { "nombre": "Luis" }]
+  "recursos": [
+    { "nombre": "Ana", "ausencias": [{ "desde": "2026-09-07", "hasta": "2026-09-13", "motivo": "vacaciones" }] },
+    { "nombre": "Luis" }                                    // Luis sigue trabajando esos días
+  ]
 }
 ```
 
@@ -87,8 +90,8 @@ que elijas y te pregunta los cuatro datos que hacen falta.
 El **vocabulario** manda en cómo habla: donde una peluquería dice «tu cita con
 Ana», una clínica dice «tu visita con la Dra. Gómez» y un taller dice «tu cita
 en el elevador 2». Los **recursos** son personas o cosas, lo que haga falta
-reservar; cada uno puede tener su propio horario y atender a más de uno a la
-vez (`capacidad`).
+reservar; cada uno puede tener su propio horario, sus vacaciones (`ausencias`) y
+atender a más de uno a la vez (`capacidad`).
 
 ## Lo que te toca a ti
 
@@ -140,7 +143,7 @@ datos/             SQLite: esquema y acceso
 panel/             la interfaz
 plantillas/        seis tipos de negocio listos
 demo-web/          empaqueta todo en una página web que funciona sin servidor
-pruebas/           267 pruebas
+pruebas/           295 pruebas
 ```
 
 Más detalle en [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
@@ -165,7 +168,7 @@ solo para construir la demostración, y por eso no están en `package.json`.
 ## Pruebas
 
 ```
-npm test     # 267 pruebas, sin red y sin tocar tu base
+npm test     # 295 pruebas, sin red y sin tocar tu base
 ```
 
 Cubren el motor de huecos (incluido el fin de semana del cambio de hora), que

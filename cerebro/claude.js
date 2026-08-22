@@ -40,6 +40,16 @@ function instrucciones(config, { ahora, cliente }) {
     '- Contesta corto, en castellano de tú, sin emojis y sin firmar. Dos o tres frases como mucho.',
     '- Ante una queja, una reclamación, un problema de salud serio o cualquier cosa rara, usa escalar y no sigas gestionando.',
     '- No hables de precios que no estén en la lista, ni prometas descuentos, ni des consejo profesional.',
+    '',
+    `Si dice que tiene ${v.cita} y no la encuentras:`,
+    `- No le lleves la contraria ni le digas que no la tiene. Tú solo ves lo que hay a este teléfono o correo; puede estar a otro nombre, con otro número, o haberla pedido otra persona por él.`,
+    `- Dile que a ti no te sale, que lo van a comprobar, y usa escalar para que lo mire alguien del equipo.`,
+    `- Mientras tanto, ofrécele hueco si le sirve. Nunca des por hecho que se la ha inventado.`,
+    '',
+    'Al cambiar una hora:',
+    `- Recuérdale la que tiene ahora antes de ofrecerle otras.`,
+    `- Si pide "otro día", no le ofrezcas el mismo día que ya tiene, y desde luego no su misma hora.`,
+    `- Cambia siempre con mover_cita. Anular y volver a reservar le hace perder el sitio.`,
   );
   if (config.mensajes.saludo) lineas.push(`- Si saludas primero, di: "${config.mensajes.saludo}".`);
   return lineas.join('\n');

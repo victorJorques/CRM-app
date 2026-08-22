@@ -246,3 +246,60 @@ test('el día del cambio de hora no ofrece horas que no existen', () => {
   assert.ok(!horas.includes('02:30'));
   assert.ok(horas.includes('03:00'));
 });
+
+// --- Vacaciones y bajas de una sola persona --------------------------------
+
+test('quien está de vacaciones no da huecos, y el resto sigue', () => {
+  const config = negocioDePrueba({
+    recursos: [
+      { nombre: 'Ana', ausencias: [{ desde: LUNES, hasta: MARTES, motivo: 'vacaciones' }] },
+      { nombre: 'Luis' },
+    ],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 30, precio: 20 }],
+  });
+  const { db, ahora } = montar();
+  const huecos = agenda.huecosDelDia(db, config, { servicioId: 'corte', clave: LUNES, ahora });
+  assert.ok(huecos.length > 0);
+  assert.ok(huecos.every((h) => h.recursoId === 'luis'));
+  assert.equal(agenda.huecosDelDia(db, config, { servicioId: 'corte', clave: LUNES, recursoId: 'ana', ahora }).length, 0);
+});
+
+test('las vacaciones terminan cuando dicen', () => {
+  const config = negocioDePrueba({
+    recursos: [{ nombre: 'Ana', ausencias: [{ desde: LUNES, hasta: LUNES, motivo: 'vacaciones' }] }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 30, precio: 20 }],
+  });
+  const { db, ahora } = montar();
+  assert.equal(agenda.huecosDelDia(db, config, { servicioId: 'corte', clave: LUNES, ahora }).length, 0);
+  assert.ok(agenda.huecosDelDia(db, config, { servicioId: 'corte', clave: MARTES, ahora }).length > 0);
+});
+
+test('el motivo de la ausencia se sabe y se dice', () => {
+  const config = negocioDePrueba({
+    recursos: [{ nombre: 'Ana', ausencias: [{ desde: LUNES, hasta: LUNES, motivo: 'de baja' }] }, { nombre: 'Luis' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 30, precio: 20 }],
+  });
+  const porQue = agenda.porQueNoHayHuecos(config, {
+    clave: LUNES,
+    servicio: config.servicios[0],
+    recurso: config.recursos.find((r) => r.id === 'ana'),
+  });
+  assert.equal(porQue.motivo, 'recurso-ausente');
+  assert.equal(porQue.razon, 'de baja');
+  const { db } = montar();
+  const dia = agenda.resumenDia(db, config, LUNES);
+  assert.equal(dia.recursos.find((r) => r.id === 'ana').ausencia, 'de baja');
+  assert.equal(dia.recursos.find((r) => r.id === 'luis').ausencia, null);
+});
+
+test('una cita ya puesta no desaparece porque luego pongan vacaciones', () => {
+  const entorno = montar();
+  const reserva = conCita(entorno, { hora: 10, recursoId: 'ana' });
+  assert.ok(reserva.ok);
+  const conVacaciones = negocioDePrueba({
+    recursos: [{ nombre: 'Ana', ausencias: [{ desde: LUNES, hasta: LUNES, motivo: 'vacaciones' }] }, { nombre: 'Luis' }],
+  });
+  const dia = agenda.resumenDia(entorno.db, conVacaciones, LUNES);
+  assert.equal(dia.citas.length, 1);   // sigue ahí para que alguien la mueva
+  assert.equal(dia.recursos.find((r) => r.id === 'ana').ausencia, 'vacaciones');
+});
