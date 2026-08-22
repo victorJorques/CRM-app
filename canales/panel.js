@@ -10,14 +10,8 @@ import { join, extname, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 
-import * as agenda from '../nucleo/agenda.js';
-import * as citas from '../nucleo/citas.js';
-import * as clientes from '../nucleo/clientes.js';
-import * as bandeja from '../nucleo/bandeja.js';
-import * as recordatorios from '../nucleo/recordatorios.js';
-import * as redaccion from '../nucleo/redaccion.js';
-import { contestar, cerebroDisponible } from '../cerebro/index.js';
-import { claveDia, instanteDe, sumarDias } from '../nucleo/tiempo.js';
+import { api } from './api.js';
+import { cerebroDisponible } from '../cerebro/index.js';
 import { recibirWhatsapp, verificarWhatsapp } from './whatsapp.js';
 import { recibirLlamada } from './llamadas.js';
 
@@ -149,7 +143,12 @@ export function crearServidor(estado) {
       if (!autorizado(req)) {
         return json(res, { error: clave ? 'Hay que entrar con la clave.' : 'Solo desde este ordenador.' }, 401);
       }
-      return await api(ruta, req, res, url, estado);
+      const respuesta = await api(ruta, {
+        metodo: req.method,
+        url,
+        cuerpo: req.method === 'GET' ? {} : await leerCuerpo(req),
+      }, estado);
+      return json(res, respuesta.datos, respuesta.codigo);
     } catch (error) {
       db.apuntar('panel.error', ruta, { mensaje: error.message });
       return json(res, { error: error.message }, 500);
@@ -176,170 +175,4 @@ async function servirEstatico(ruta, res) {
   } catch {
     res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' }).end('Aquí no hay nada');
   }
-}
-
-async function api(ruta, req, res, url, estado) {
-  const { db, config } = estado;
-  const zona = config.negocio.zonaHoraria;
-  const partes = ruta.split('/').filter(Boolean).slice(1); // fuera 'api'
-  const cuerpo = req.method === 'GET' ? {} : await leerCuerpo(req);
-  const hoy = claveDia(zona, Date.now());
-
-  // /api/estado
-  if (partes[0] === 'estado') {
-    const dia = agenda.resumenDia(db, config, hoy);
-    return json(res, {
-      negocio: config.negocio,
-      vocabulario: config.vocabulario,
-      servicios: config.servicios.filter((s) => s.activo).map((s) => ({
-        id: s.id, nombre: s.nombre, duracion: s.duracionMinutos, precio: s.precio,
-      })),
-      recursos: config.recursos.filter((r) => r.activo).map((r) => ({ id: r.id, nombre: r.nombre })),
-      cerebro: cerebroDisponible(),
-      canales: estado.canales ?? {},
-      hoy: { dia: hoy, citas: dia.total, previsto: dia.previstoCentimos, abierto: dia.abierto },
-      sinLeer: bandeja.sinLeer(db),
-      porCerrar: citas.pendientesDeCerrar(db).length,
-      recordatorios: recordatorios.listar(db, { estado: 'a_mano', limite: 50 }).length,
-    });
-  }
-
-  // /api/agenda?dia=
-  if (partes[0] === 'agenda') {
-    const dia = url.searchParams.get('dia') ?? hoy;
-    return json(res, agenda.resumenDia(db, config, dia));
-  }
-
-  // /api/huecos?servicio=&dia=&franja=&recurso=
-  if (partes[0] === 'huecos') {
-    const resultado = agenda.buscarHuecos(db, config, {
-      servicioId: url.searchParams.get('servicio'),
-      desde: url.searchParams.get('dia') ?? null,
-      franja: url.searchParams.get('franja'),
-      recursoId: url.searchParams.get('recurso'),
-      dias: Number(url.searchParams.get('dias') ?? 7),
-      limite: Number(url.searchParams.get('limite') ?? 12),
-    });
-    return json(res, resultado);
-  }
-
-  // /api/citas
-  if (partes[0] === 'citas') {
-    if (req.method === 'POST' && !partes[1]) {
-      const resultado = citas.reservar(db, config, {
-        servicioId: cuerpo.servicio,
-        inicio: Number(cuerpo.inicio),
-        recursoId: cuerpo.recurso ?? null,
-        clienteId: cuerpo.clienteId ?? null,
-        cliente: cuerpo.cliente ?? null,
-        notas: cuerpo.notas ?? '',
-        canal: 'panel',
-      });
-      return json(res, resultado, resultado.ok ? 200 : 409);
-    }
-    if (partes[1] && partes[2] === 'mover' && req.method === 'POST') {
-      const resultado = citas.mover(db, config, { citaId: partes[1], nuevoInicio: Number(cuerpo.inicio), recursoId: cuerpo.recurso ?? null });
-      return json(res, resultado, resultado.ok ? 200 : 409);
-    }
-    if (partes[1] && partes[2] === 'anular' && req.method === 'POST') {
-      return json(res, citas.anular(db, config, { citaId: partes[1], motivo: cuerpo.motivo ?? '' }));
-    }
-    if (partes[1] && partes[2] === 'estado' && req.method === 'POST') {
-      return json(res, citas.marcar(db, config, { citaId: partes[1], estado: cuerpo.estado, precio: cuerpo.precio }));
-    }
-    if (partes[1] && partes[2] === 'notas' && req.method === 'POST') {
-      return json(res, { ok: true, cita: citas.notas(db, partes[1], cuerpo.texto ?? '') });
-    }
-    if (partes[1] === 'por-cerrar') return json(res, citas.pendientesDeCerrar(db));
-  }
-
-  // /api/clientes
-  if (partes[0] === 'clientes') {
-    if (!partes[1] && req.method === 'GET') {
-      return json(res, clientes.listar(db, {
-        busqueda: url.searchParams.get('busqueda') ?? '',
-        limite: Number(url.searchParams.get('limite') ?? 60),
-      }));
-    }
-    if (!partes[1] && req.method === 'POST') {
-      return json(res, clientes.buscarOCrear(db, cuerpo));
-    }
-    if (partes[1] && req.method === 'GET') return json(res, clientes.ficha(db, partes[1]));
-    if (partes[1] && (req.method === 'PATCH' || req.method === 'POST')) {
-      return json(res, clientes.actualizar(db, partes[1], cuerpo));
-    }
-  }
-
-  // /api/bandeja
-  if (partes[0] === 'bandeja') {
-    if (!partes[1]) {
-      return json(res, bandeja.listar(db, {
-        estado: url.searchParams.get('estado'),
-        canal: url.searchParams.get('canal'),
-        limite: Number(url.searchParams.get('limite') ?? 50),
-      }));
-    }
-    if (partes[1] && !partes[2] && req.method === 'GET') {
-      bandeja.marcarLeida(db, partes[1]);
-      const conversacion = bandeja.conversacionPorId(db, partes[1]);
-      return json(res, {
-        conversacion,
-        cliente: conversacion?.cliente_id ? clientes.ficha(db, conversacion.cliente_id) : null,
-        mensajes: bandeja.mensajesDe(db, partes[1], { limite: 100 }),
-      });
-    }
-    if (partes[2] === 'responder' && req.method === 'POST') {
-      bandeja.tomarElMando(db, partes[1], 'panel');
-      const mensaje = bandeja.saliente(db, partes[1], cuerpo.texto ?? '', { autor: 'humano' });
-      const conversacion = bandeja.conversacionPorId(db, partes[1]);
-      const enviado = await estado.enviar?.(conversacion, cuerpo.texto ?? '');
-      return json(res, { ok: true, mensaje, enviado: enviado ?? { ok: false, motivo: 'sin-canal' } });
-    }
-    if (partes[2] === 'mando' && req.method === 'POST') {
-      const conversacion = cuerpo.estado === 'bot'
-        ? bandeja.devolverAlBot(db, partes[1])
-        : bandeja.tomarElMando(db, partes[1], 'panel');
-      return json(res, conversacion);
-    }
-  }
-
-  // /api/simulador
-  if (partes[0] === 'simulador' && req.method === 'POST') {
-    const resultado = await contestar({
-      db,
-      config,
-      canal: 'simulador',
-      externo: cuerpo.externo || 'simulador',
-      texto: cuerpo.texto ?? '',
-      contacto: cuerpo.telefono ? { telefono: cuerpo.telefono } : {},
-      forzarCerebro: cuerpo.cerebro ?? null,
-    });
-    return json(res, {
-      texto: resultado.texto,
-      cerebro: resultado.cerebro,
-      acciones: (resultado.acciones ?? []).map((a) => ({ herramienta: a.herramienta, entrada: a.entrada, ok: a.resultado?.ok })),
-      conversacionId: resultado.conversacion?.id,
-    });
-  }
-
-  // /api/recordatorios
-  if (partes[0] === 'recordatorios') {
-    if (!partes[1] && req.method === 'GET') {
-      return json(res, recordatorios.listar(db, { estado: url.searchParams.get('estado'), limite: 100 }));
-    }
-    if (partes[2] === 'enviado' && req.method === 'POST') {
-      recordatorios.marcarEnviado(db, partes[1], 'a mano');
-      return json(res, { ok: true });
-    }
-  }
-
-  // /api/inactivos
-  if (partes[0] === 'inactivos') {
-    return json(res, clientes.inactivos(db, {
-      dias: Number(url.searchParams.get('dias') ?? config.recordatorios.seguimientoInactivosDias ?? 120),
-      limite: 50,
-    }));
-  }
-
-  return json(res, { error: 'No existe ese sitio' }, 404);
 }

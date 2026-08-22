@@ -7,3 +7,4 @@ datos/*.db-shm
 conserje.config.json
 *.log
 .DS_Store
+demo-web/salida/

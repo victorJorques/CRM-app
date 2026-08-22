@@ -6,7 +6,7 @@
 
 import { existsSync } from 'node:fs';
 import { cargarEntorno } from './nucleo/entorno.js';
-import { cargarConfig } from './nucleo/config.js';
+import { cargarConfig } from './nucleo/config-fichero.js';
 import { abrirBase } from './datos/db.js';
 import { crearServidor } from './canales/panel.js';
 import { arrancarReloj } from './nucleo/reloj.js';

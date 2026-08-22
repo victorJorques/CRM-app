@@ -139,15 +139,33 @@ canales/           panel (HTTP y API), whatsapp, correo (SMTP e IMAP), llamadas
 datos/             SQLite: esquema y acceso
 panel/             la interfaz
 plantillas/        seis tipos de negocio listos
-pruebas/           264 pruebas
+demo-web/          empaqueta todo en una página web que funciona sin servidor
+pruebas/           267 pruebas
 ```
 
 Más detalle en [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
 
+## Verlo sin instalar nada
+
+`demo-web/` empaqueta Conserje entero en una sola página web: el mismo motor de
+agenda, las mismas herramientas y el mismo cerebro de reglas, con SQLite
+compilado a JavaScript y la base en la memoria del navegador. No es una
+maqueta: las citas se reservan de verdad, solo que al recargar se empieza de
+cero y nada sale de tu ordenador.
+
+```
+npm --prefix /tmp/conserje-demo i sql.js esbuild        # solo para construir
+node demo-web/construir.mjs /tmp/conserje-demo/node_modules/sql.js/dist
+→ demo-web/salida/conserje-demo.html
+```
+
+Conserje no depende de nada para funcionar; esas dos herramientas hacen falta
+solo para construir la demostración, y por eso no están en `package.json`.
+
 ## Pruebas
 
 ```
-npm test     # 264 pruebas, sin red y sin tocar tu base
+npm test     # 267 pruebas, sin red y sin tocar tu base
 ```
 
 Cubren el motor de huecos (incluido el fin de semana del cambio de hora), que

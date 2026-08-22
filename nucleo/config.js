@@ -4,7 +4,6 @@
 // solo conoce servicios, recursos y horarios.
 // ---------------------------------------------------------------------------
 
-import { readFileSync, existsSync } from 'node:fs';
 import { NOMBRES_DIAS, minutosDeHora, horaDeMinutos, esClaveDia } from './tiempo.js';
 
 const VOCABULARIO_BASE = {
@@ -296,23 +295,6 @@ export function revisarConfig(bruta) {
   }
 
   return { ok: errores.length === 0, errores, avisos, config: errores.length === 0 ? config : null };
-}
-
-export function cargarConfig(ruta = 'conserje.config.json') {
-  if (!existsSync(ruta)) {
-    throw new ErroresConfig([
-      `No encuentro ${ruta}. Copia una plantilla de plantillas/ o ejecuta: node configurar.js`,
-    ]);
-  }
-  let bruta;
-  try {
-    bruta = JSON.parse(readFileSync(ruta, 'utf8'));
-  } catch (error) {
-    throw new ErroresConfig([`${ruta} no es un JSON válido: ${error.message}`]);
-  }
-  const revision = revisarConfig(bruta);
-  if (!revision.ok) throw new ErroresConfig(revision.errores);
-  return revision;
 }
 
 // --- Consultas de conveniencia ---------------------------------------------

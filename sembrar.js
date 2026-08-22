@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import { cargarEntorno } from './nucleo/entorno.js';
-import { cargarConfig } from './nucleo/config.js';
+import { cargarConfig } from './nucleo/config-fichero.js';
 import { abrirBase } from './datos/db.js';
 import * as clientes from './nucleo/clientes.js';
 import * as citas from './nucleo/citas.js';

@@ -9,17 +9,29 @@
   --sombra: 0 1px 0 rgba(23,29,22,.04), 0 6px 20px -12px rgba(23,29,22,.28);
   color-scheme: light dark;
 }
+/* Oscuro por preferencia del sistema, salvo que se haya pedido claro. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --papel: #111410; --hoja: #191d17; --hoja2: #212620;
-    --tinta: #e7eadf; --tinta2: #a2aba0; --tinta3: #767f75;
-    --linea: #2a3028; --linea2: #3a4238;
-    --pino: #6fc5a3; --pino-suave: #16302a;
-    --ocre: #dca84a; --ocre-suave: #2e2413;
-    --rojo: #e08b7a; --rojo-suave: #33211c;
-    --sombra: 0 1px 0 rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+  :root:not([data-theme="light"]) {
+  --papel: #111410; --hoja: #191d17; --hoja2: #212620;
+  --tinta: #e7eadf; --tinta2: #a2aba0; --tinta3: #767f75;
+  --linea: #2a3028; --linea2: #3a4238;
+  --pino: #6fc5a3; --pino-suave: #16302a;
+  --ocre: #dca84a; --ocre-suave: #2e2413;
+  --rojo: #e08b7a; --rojo-suave: #33211c;
+  --sombra: 0 1px 0 rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
   }
 }
+/* Oscuro pedido a mano: gana siempre. */
+:root[data-theme="dark"] {
+  --papel: #111410; --hoja: #191d17; --hoja2: #212620;
+  --tinta: #e7eadf; --tinta2: #a2aba0; --tinta3: #767f75;
+  --linea: #2a3028; --linea2: #3a4238;
+  --pino: #6fc5a3; --pino-suave: #16302a;
+  --ocre: #dca84a; --ocre-suave: #2e2413;
+  --rojo: #e08b7a; --rojo-suave: #33211c;
+  --sombra: 0 1px 0 rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+}
+
 * { box-sizing: border-box; }
 body {
   margin: 0; background: var(--papel); color: var(--tinta);

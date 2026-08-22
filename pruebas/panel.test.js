@@ -1,4 +1,4 @@
-import test from 'node:test';
+import test, { after } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { crearServidor } from '../canales/panel.js';
@@ -7,16 +7,24 @@ import * as clientes from '../nucleo/clientes.js';
 import * as bandeja from '../nucleo/bandeja.js';
 import { montar, instante, LUNES } from './ayuda.js';
 
+// Si una prueba falla antes de cerrar su servidor, el proceso se queda vivo
+// esperando. Se apuntan todos y se cierran al final pase lo que pase.
+const abiertos = new Set();
+after(async () => {
+  for (const servidor of abiertos) await new Promise((r) => servidor.close(r));
+});
+
 async function levantar(opciones = {}) {
   const entorno = montar();
   const servidor = crearServidor({ db: entorno.db, config: entorno.config, ...opciones });
+  abiertos.add(servidor);
   servidor.listen(0, '127.0.0.1');
   await once(servidor, 'listening');
   const base = `http://127.0.0.1:${servidor.address().port}`;
   return {
     ...entorno,
     base,
-    cerrar: () => new Promise((r) => servidor.close(r)),
+    cerrar: () => { abiertos.delete(servidor); return new Promise((r) => servidor.close(r)); },
     pedir: (ruta, init = {}) => fetch(`${base}${ruta}`, {
       ...init,
       headers: { 'content-type': 'application/json', ...(init.headers ?? {}) },

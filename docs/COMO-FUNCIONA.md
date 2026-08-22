@@ -92,7 +92,7 @@ ocurre en producción.
 ## Probar
 
 ```
-npm test            # 264 pruebas, sin red
+npm test            # 267 pruebas, sin red
 node demo.js        # el sistema entero en la terminal, base en memoria
 node demo.js plantillas/taller.json   # con otro tipo de negocio
 ```
