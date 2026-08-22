@@ -58,12 +58,22 @@ export function desfase(zona, ms) {
  */
 export function aUtc(zona, { anio, mes, dia, hora = 0, minuto = 0 }) {
   const objetivo = Date.UTC(anio, mes - 1, dia, hora, minuto);
-  let ms = objetivo - desfase(zona, objetivo);
-  ms = objetivo - desfase(zona, ms);
-  const vuelta = partesLocales(zona, ms);
-  if (vuelta.anio !== anio || vuelta.mes !== mes || vuelta.dia !== dia
-    || vuelta.hora !== hora || vuelta.minuto !== minuto) return null;
-  return ms;
+  const encaja = (ms) => {
+    const vuelta = partesLocales(zona, ms);
+    return vuelta.anio === anio && vuelta.mes === mes && vuelta.dia === dia
+      && vuelta.hora === hora && vuelta.minuto === minuto;
+  };
+  // Se prueban los dos desfases posibles alrededor de ese dia: en el fin de
+  // semana del cambio de hora conviven los dos. Si la hora existe dos veces
+  // (la madrugada en que se atrasa el reloj), nos quedamos con la primera,
+  // que es lo que entiende cualquiera; si no existe ninguna, devolvemos null.
+  const candidatos = new Set([
+    objetivo - desfase(zona, objetivo),
+    objetivo - desfase(zona, objetivo - 86400000),
+    objetivo - desfase(zona, objetivo + 86400000),
+  ]);
+  const validos = [...candidatos].filter(encaja);
+  return validos.length ? Math.min(...validos) : null;
 }
 
 /** 'YYYY-MM-DD' del dia local al que pertenece ese instante. */

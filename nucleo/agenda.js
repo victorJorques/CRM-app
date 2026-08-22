@@ -235,6 +235,28 @@ export function comprobarHora(db, config, {
   };
 }
 
+/**
+ * Por que no hay huecos ese dia. Decir "esta lleno" cuando en realidad
+ * cerramos, o cuando quien te gusta libra, es una respuesta inutil.
+ */
+export function porQueNoHayHuecos(config, { clave, servicio = null, recurso = null }) {
+  if (recurso && servicio && !recursosDe(config, servicio).some((r) => r.id === recurso.id)) {
+    return { motivo: 'recurso-no-hace', detalle: recurso.nombre };
+  }
+  if (esFestivo(config, clave)) return { motivo: 'festivo', detalle: motivoCierre(config, clave) };
+  const candidatos = recurso ? [recurso] : recursosDe(config, servicio);
+  const trabajando = candidatos.filter((r) => tramosDe(config, r, clave).length > 0);
+  if (trabajando.length === 0) {
+    if (recurso) return { motivo: 'recurso-libra', detalle: recurso.nombre };
+    const alguien = config.recursos.filter((r) => r.activo)
+      .some((r) => tramosDe(config, r, clave).length > 0);
+    return alguien
+      ? { motivo: 'servicio-sin-nadie', detalle: servicio?.nombre ?? '' }
+      : { motivo: 'cerrado', detalle: null };
+  }
+  return { motivo: 'lleno', detalle: null };
+}
+
 /** Lo que hay que ver de un dia: quien trabaja, que tiene y cuanto suma. */
 export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
   const zona = config.negocio.zonaHoraria;

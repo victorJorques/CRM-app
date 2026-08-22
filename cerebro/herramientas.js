@@ -4,15 +4,15 @@
 // horas. Todo pasa por aqui, y aqui todo pasa por el motor de agenda.
 // ---------------------------------------------------------------------------
 
-import { servicioPorId, recursoPorId } from '../nucleo/config.js';
-import { buscarHuecos, comprobarHora } from '../nucleo/agenda.js';
+import { servicioPorId, recursoPorId, recursosDe, esFestivo, motivoCierre } from '../nucleo/config.js';
+import { buscarHuecos, comprobarHora, porQueNoHayHuecos } from '../nucleo/agenda.js';
 import * as citas from '../nucleo/citas.js';
 import * as clientes from '../nucleo/clientes.js';
 import * as bandeja from '../nucleo/bandeja.js';
 import * as redaccion from '../nucleo/redaccion.js';
 import { claveDia, instanteDe, hora as horaDe, fechaYHora } from '../nucleo/tiempo.js';
 import {
-  resolverDia, resolverHora, resolverServicio, resolverRecurso, desambiguarConHorario,
+  resolverDia, resolverHora, resolverServicio, resolverRecurso, desambiguarConHorario, horaEsExplicita,
 } from './entender.js';
 
 /** Lo que el modelo ve. Las descripciones son parte del comportamiento. */
@@ -71,7 +71,7 @@ export function definiciones(config) {
     },
     {
       name: 'mover_cita',
-      description: `Cambia ${v.laCita} a otro día u hora.`,
+      description: `Cambia ${v.laCita} a otro día u hora. La hora nueva se comprueba igual que una reserva: si está cogida, te devuelve alternativas.`,
       input_schema: {
         type: 'object',
         properties: {
@@ -84,7 +84,7 @@ export function definiciones(config) {
     },
     {
       name: 'anular_cita',
-      description: `Anula ${v.laCita}.`,
+      description: `Anula ${v.laCita}. Mira antes con mis_citas cuál es; si tiene varias, pregúntale cuál antes de anular nada.`,
       input_schema: {
         type: 'object',
         properties: {
@@ -135,7 +135,7 @@ function resolverInstante(config, { dia, hora }, ahora) {
   if (!clave) return { error: 'dia-no-entendido' };
   let minutos = resolverHora(hora) ?? resolverHora(`a las ${hora}`);
   if (minutos === null) return { error: 'hora-no-entendida', clave };
-  minutos = desambiguarConHorario(config, minutos, clave);
+  minutos = desambiguarConHorario(config, minutos, clave, { explicita: horaEsExplicita(hora) });
   const inicio = instanteDe(zona, clave, minutos);
   if (inicio === null) return { error: 'hora-que-no-existe', clave };
   return { clave, minutos, inicio };
@@ -196,15 +196,40 @@ export function ejecutar(nombre, entrada = {}, ctx) {
           limite: config.reglas.huecosQueOfrece ?? 4,
         });
         if (huecos.length === 0) {
-          const masAdelante = entrada.dia
-            ? buscarHuecos(db, config, { servicioId: servicio.id, desde, dias: 14, recursoId: recurso?.id ?? null, ahora, limite: 3 }).huecos
+          const porQuePrevio = desde
+            ? porQueNoHayHuecos(config, { clave: desde, servicio, recurso })
+            : { motivo: 'lleno' };
+          // Si el problema es quien lo hace, se busca con quien SI lo hace:
+          // "Luis no hace mechas, las hace Ana; el lunes tengo..."
+          const sinRecurso = porQuePrevio.motivo === 'recurso-no-hace';
+          const masAdelante = (entrada.dia || sinRecurso)
+            ? buscarHuecos(db, config, {
+              servicioId: servicio.id,
+              desde,
+              dias: 14,
+              recursoId: sinRecurso ? null : (recurso?.id ?? null),
+              ahora,
+              limite: 3,
+            }).huecos
             : [];
+          const porQue = porQuePrevio;
+          const quienLoHace = recursosDe(config, servicio).map((r) => r.nombre);
+          const cabeceras = {
+            festivo: `Ese día está cerrado${porQue.detalle && porQue.detalle !== 'festivo' ? ` (${porQue.detalle})` : ''}.`,
+            cerrado: 'Ese día no abrimos.',
+            'recurso-libra': `${porQue.detalle} no trabaja ese día.`,
+            'recurso-no-hace': `${porQue.detalle} no hace ${servicio.nombre.toLowerCase()}: ${quienLoHace.length === 1 ? `lo hace ${quienLoHace[0]}` : `lo hacen ${quienLoHace.join(' y ')}`}.`,
+            'servicio-sin-nadie': `Ese día no hay nadie que haga ${servicio.nombre.toLowerCase()}.`,
+            lleno: `Ese día no queda nada para ${servicio.nombre.toLowerCase()}.`,
+          };
+          const cabecera = cabeceras[porQue.motivo] ?? cabeceras.lleno;
           return {
-            ok: true, huecos: [], servicio: servicio.nombre,
+            ok: true, huecos: [], servicio: servicio.nombre, cerrado: porQue.motivo !== 'lleno', motivo: porQue.motivo,
             siguientes: masAdelante.map((h) => huecoLegible(config, h)),
+            _huecos: masAdelante,
             resumen: masAdelante.length
-              ? `Ese día no queda nada para ${servicio.nombre}. Lo siguiente libre: ${masAdelante.map((h) => `${h.dia} a las ${h.hora}`).join(', ')}.`
-              : `No queda nada libre para ${servicio.nombre} en los próximos días.`,
+              ? `${cabecera} ${redaccion.ofertaDeHuecos(config, masAdelante, { ahora })}`
+              : `${cabecera} No me queda nada libre en los próximos días.`,
           };
         }
         return {
@@ -262,7 +287,7 @@ export function ejecutar(nombre, entrada = {}, ctx) {
             ok: false, motivo: resultado.motivo,
             alternativas: (resultado.alternativas ?? []).map((h) => huecoLegible(config, h)),
             _huecos: resultado.alternativas ?? [],
-            resumen: `No he podido reservar (${resultado.motivo}).${resultado.alternativas?.length ? ` Libres: ${resultado.alternativas.map((h) => `${h.dia} ${h.hora}`).join(', ')}.` : ''}`,
+            resumen: `${explicarMotivo(config, resultado, servicio, ahora)}`,
           };
         }
         return {
@@ -314,7 +339,7 @@ export function ejecutar(nombre, entrada = {}, ctx) {
             ok: false, motivo: resultado.motivo,
             alternativas: (resultado.alternativas ?? []).map((h) => huecoLegible(config, h)),
             _huecos: resultado.alternativas ?? [],
-            resumen: `Esa hora no puede ser (${resultado.motivo}).${resultado.alternativas?.length ? ` Libres: ${resultado.alternativas.map((h) => `${h.dia} ${h.hora}`).join(', ')}.` : ''}`,
+            resumen: `${explicarMotivo(config, resultado, servicioPorId(config, cita.servicio_id), ahora)}`,
           };
         }
         return { ok: true, _cita: resultado.cita, resumen: redaccion.cambioConfirmado(config, resultado.cita) };
@@ -376,9 +401,9 @@ export function ejecutar(nombre, entrada = {}, ctx) {
 
 function explicarMotivo(config, resultado, servicio, ahora) {
   const alternativas = resultado.alternativas ?? [];
-  const cola = alternativas.length
-    ? ` Libres: ${alternativas.map((h) => `${h.dia} a las ${h.hora}`).join(', ')}.`
-    : '';
+  // Las alternativas se dicen como se las diria una persona, no en ISO.
+  const oferta = alternativas.length ? redaccion.ofertaDeHuecos(config, alternativas, { ahora }) : '';
+  const cola = oferta ? ` ${oferta}` : '';
   switch (resultado.motivo) {
     case 'ocupado': return `Esa hora está cogida.${cola}`;
     case 'cerrado': return `Ese día está cerrado (${resultado.detalle ?? 'festivo'}).${cola}`;

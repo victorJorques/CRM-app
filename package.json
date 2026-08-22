@@ -12,7 +12,7 @@
     "configurar": "node configurar.js",
     "sembrar": "node sembrar.js",
     "demo": "node demo.js",
-    "test": "node --test pruebas/"
+    "test": "node --test pruebas/*.test.js"
   },
   "dependencies": {}
 }

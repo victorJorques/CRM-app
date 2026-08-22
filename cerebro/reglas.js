@@ -9,6 +9,7 @@ import { ejecutar } from './herramientas.js';
 import {
   detectarIntencion, resolverServicio, resolverDia, resolverHora, resolverFranja,
   resolverRecurso, elegirDeLaLista, extraerNombre, esAfirmacion, esNegacion, limpiar,
+  desambiguarConHorario, horaEsExplicita,
 } from './entender.js';
 import * as redaccion from '../nucleo/redaccion.js';
 import * as clientes from '../nucleo/clientes.js';
@@ -92,6 +93,14 @@ export function responder(texto, ctx) {
       return cerrar(
         redaccion.propuesta(config, { servicio, hueco: { ...elegido }, ahora }),
         { paso: 'confirmando', propuesta: elegido },
+      );
+    }
+    // Un "sí" a secas cuando lo que hay encima son varias horas no es una
+    // confirmacion de nada: hay que preguntar cual.
+    if (esAfirmacion(texto) && !memoria.propuesta) {
+      return cerrar(
+        `¿Cuál te viene mejor, ${redaccion.enumerar(memoria.huecos.map((h) => h.hora), 'o')}?`,
+        { paso: 'eligiendo_hora' },
       );
     }
   }
@@ -189,8 +198,9 @@ export function responder(texto, ctx) {
 
     // Hora concreta: se comprueba, no se promete.
     if (dia && minutos !== null) {
+      const enPunto = desambiguarConHorario(config, minutos, dia, { explicita: horaEsExplicita(texto) });
       const r = usar('comprobar_hora', {
-        servicio: servicio.nombre, dia, hora: minutosATexto(minutos), recurso: recurso?.nombre,
+        servicio: servicio.nombre, dia, hora: minutosATexto(enPunto), recurso: recurso?.nombre,
       });
       if (r.ok && r.libre) {
         return cerrar(

@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conserje</title>
+  <link rel="stylesheet" href="/panel.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🛎️</text></svg>">
+</head>
+<body>
+  <div id="entrada" class="entrada oculto">
+    <form id="formEntrada">
+      <h1>Conserje</h1>
+      <p>Este panel está cerrado con clave.</p>
+      <input type="password" id="clave" placeholder="Clave" autocomplete="current-password" required>
+      <button type="submit">Entrar</button>
+      <p class="error" id="errorEntrada"></p>
+    </form>
+  </div>
+
+  <div id="app" class="oculto">
+    <header>
+      <div class="marca">
+        <b id="negocio">Conserje</b>
+        <span id="cerebro" class="etiqueta"></span>
+      </div>
+      <nav>
+        <button data-vista="agenda" class="activa">Agenda</button>
+        <button data-vista="bandeja">Bandeja <i id="contadorBandeja"></i></button>
+        <button data-vista="fichas">Fichas</button>
+        <button data-vista="avisos">Avisos <i id="contadorAvisos"></i></button>
+        <button data-vista="simulador">Simulador</button>
+      </nav>
+    </header>
+
+    <main>
+      <!-- AGENDA -->
+      <section id="vista-agenda" class="vista">
+        <div class="barra">
+          <button id="diaAnterior" title="Día anterior">←</button>
+          <input type="date" id="dia">
+          <button id="diaSiguiente" title="Día siguiente">→</button>
+          <button id="diaHoy">Hoy</button>
+          <span class="separador"></span>
+          <button id="nuevaCita" class="principal">Nueva cita</button>
+        </div>
+        <div id="cifrasDia" class="cifras"></div>
+        <div id="agenda"></div>
+      </section>
+
+      <!-- BANDEJA -->
+      <section id="vista-bandeja" class="vista oculto">
+        <div class="dos-columnas">
+          <div id="conversaciones" class="lista"></div>
+          <div id="conversacion" class="hilo"><p class="vacio">Elige una conversación.</p></div>
+        </div>
+      </section>
+
+      <!-- FICHAS -->
+      <section id="vista-fichas" class="vista oculto">
+        <div class="barra">
+          <input type="search" id="buscarCliente" placeholder="Buscar por nombre o teléfono">
+        </div>
+        <div class="dos-columnas">
+          <div id="clientes" class="lista"></div>
+          <div id="ficha" class="detalle"><p class="vacio">Elige una ficha.</p></div>
+        </div>
+      </section>
+
+      <!-- AVISOS -->
+      <section id="vista-avisos" class="vista oculto">
+        <div id="avisos"></div>
+      </section>
+
+      <!-- SIMULADOR -->
+      <section id="vista-simulador" class="vista oculto">
+        <p class="nota">Escríbele como si fueras un cliente. Lo que pasa aquí es real: las citas se reservan de verdad.</p>
+        <div class="barra">
+          <input id="simTelefono" placeholder="Teléfono del cliente de mentira" value="+34600000001">
+          <button id="simReiniciar">Empezar de cero</button>
+        </div>
+        <div id="simChat" class="chat"></div>
+        <form id="simForm" class="escribir">
+          <input id="simTexto" placeholder="Escribe aquí…" autocomplete="off">
+          <button type="submit">Enviar</button>
+        </form>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="dialogo">
+    <form method="dialog" id="formDialogo"></form>
+  </dialog>
+
+  <script src="/panel.js" type="module"></script>
+</body>
+</html>

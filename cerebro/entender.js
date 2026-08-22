@@ -37,6 +37,10 @@ export function resolverDia(texto, { zona = 'Europe/Madrid', ahora = Date.now() 
 
   if (esClaveDia(bruto)) return bruto;
 
+  // Una fecha 2026-08-25 metida en mitad de una frase.
+  const iso = /\b(\d{4}-\d{2}-\d{2})\b/.exec(bruto);
+  if (iso && esClaveDia(iso[1])) return iso[1];
+
   // "el lunes por la mañana" habla del lunes, no de mañana: quitamos la franja
   // antes de buscar el dia.
   const t = bruto.replace(/\b(por|de|a)\s+la\s+(manana|tarde|noche|madrugada)\b/g, ' ')
@@ -137,12 +141,19 @@ function ajustarPorTarde(minutos, t) {
   return minutos;
 }
 
+/** "10:30" es una hora dicha entera; "a las 5", no. */
+export function horaEsExplicita(texto) {
+  return /\d{1,2}[:.h][0-5]\d/.test(String(texto ?? ''));
+}
+
 /**
  * Cuando alguien dice "a las 5" y el negocio no abre a las 5 de la manana,
- * quiere decir las 17:00. Se decide mirando el horario de verdad.
+ * quiere decir las 17:00. Se decide mirando el horario de verdad. Si ha
+ * escrito la hora entera ("04:00"), se respeta tal cual: el que la ha escrito
+ * asi sabe lo que dice.
  */
-export function desambiguarConHorario(config, minutos, clave) {
-  if (minutos === null || minutos >= 12 * 60) return minutos;
+export function desambiguarConHorario(config, minutos, clave, { explicita = false } = {}) {
+  if (minutos === null || explicita || minutos >= 12 * 60) return minutos;
   const dia = diaSemana(config.negocio.zonaHoraria, clave ?? claveDia(config.negocio.zonaHoraria, Date.now()));
   const tramos = config.horario[dia] ?? [];
   const cabe = (m) => tramos.some(([d, h]) => m >= d && m < h);
@@ -192,13 +203,19 @@ export function resolverServicio(config, texto) {
   return mejorPuntos >= 4 ? mejor : null;
 }
 
+const ESCAPAR = /[.*+?^${}()|[\]\\]/g;
+
 export function resolverRecurso(config, texto) {
   const t = limpiar(texto);
   if (!t) return null;
+  // Por palabras enteras: si no, "mañana" contiene "ana" y acabas asignando
+  // la cita a quien no era.
   for (const recurso of config.recursos.filter((r) => r.activo)) {
-    const nombre = limpiar(recurso.nombre);
+    const nombre = limpiar(recurso.nombre).replace(ESCAPAR, '\\$&');
+    if (!nombre) continue;
+    if (new RegExp(`\\b${nombre}\\b`).test(t)) return recurso;
     const pila = nombre.split(' ').filter((p) => p.length > 2);
-    if (t.includes(nombre) || pila.some((p) => new RegExp(`\\b${p}\\b`).test(t))) return recurso;
+    if (pila.length > 1 && pila.some((p) => new RegExp(`\\b${p}\\b`).test(t))) return recurso;
   }
   return null;
 }
@@ -208,7 +225,7 @@ export function resolverRecurso(config, texto) {
 const PATRONES = [
   ['escalar', /\b(queja|quejar|reclamacion|reclamar|abogado|denuncia|estafa|hablar con (una persona|alguien|el encargado|un humano)|responsable|devolucion|devolver el dinero)\b/],
   ['anular', /\b(anul\w*|cancel\w*|quitar la cita|no voy a poder|no podre ir|borra la cita)\b/],
-  ['mover', /\b(cambiar|cambia|cambiame|mover|mueve|aplazar|adelantar|retrasar|otro dia|otra hora|posponer)\b/],
+  ['mover', /\b(cambi\w*|mover\w*|muev\w*|aplaz\w*|adelant\w*|retras\w*|pospon\w*|otro dia|otra hora)\b/],
   ['consultar', /\b(cuando tengo|que dia tengo|mi cita|mis citas|tengo cita|a que hora tengo|confirmame la hora)\b/],
   ['precio', /\b(cuanto cuesta|cuanto vale|precio|precios|tarifa|cuanto es)\b/],
   ['horario', /\b(que horario|horario|a que hora abris|abris|cerrais|abierto|cerrado|festivo)\b/],
@@ -232,8 +249,10 @@ export function detectarIntencion(texto) {
 
 export function esAfirmacion(texto) {
   const t = limpiar(texto);
-  return /^(si|sii+|s|vale|ok|okey|okay|de acuerdo|confirmo|confirmar|si confirmo|perfecto|genial|estupendo|adelante|dale|venga|eso es|correcto|me vale|si por favor|si gracias|si porfa)\b/.test(t)
-    || /\b(confirmo|confirmalo|resérvala|reservala|resérvamela|reservamela|me la quedo|apuntamela|apuntame)\b/.test(t);
+  // "no me la confirmes" lleva la palabra confirmar dentro y no es un sí.
+  if (/^(no|nop|mejor no|que va|ninguna|ninguno)\b/.test(t)) return false;
+  return /^(si|sii+|s|vale|ok|okey|okay|de acuerdo|confirm\w*|si confirmo|perfecto|genial|estupendo|adelante|dale|venga|eso es|correcto|me vale|si por favor|si gracias|si porfa)\b/.test(t)
+    || /\b(confirm\w*|reserv(ala|amela|ame)|me la quedo|apuntamela|apuntame)\b/.test(t);
 }
 
 export function esNegacion(texto) {
