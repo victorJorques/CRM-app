@@ -152,6 +152,18 @@ export function mensajeSeguimiento(config, cliente, { ultima = null } = {}) {
   return `Hola${nombre}, soy ${config.negocio.nombre}.${desde} ¿Te busco hueco para estas semanas?`;
 }
 
+/**
+ * Cuando el cliente dice que tiene cita y a nosotros no nos consta. Nunca se
+ * le lleva la contraria: el fallo puede estar perfectamente de nuestro lado
+ * (otro teléfono, otro nombre, la pidió su pareja). Se le dice lo que vemos,
+ * se avisa a una persona y se le ofrece salida.
+ */
+export function noLaEncuentro(config, { conOtroContacto = true } = {}) {
+  const v = config.vocabulario;
+  const donde = conOtroContacto ? ' con este contacto' : '';
+  return `No me sale ninguna ${v.cita}${donde}, pero eso no quiere decir que no la tengas: puede estar a otro nombre o con otro teléfono. Se lo paso al equipo para que lo confirmen.`;
+}
+
 export function fichaResumen(config, ficha) {
   const partes = [];
   partes.push(ficha.nombre || 'Sin nombre');

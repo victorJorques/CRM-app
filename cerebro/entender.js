@@ -242,6 +242,27 @@ const PATRONES = [
  * palabra "cambio" dentro, y sin esto "quiero un cambio de aceite" se
  * entiende como "quiero cambiar mi cita".
  */
+const PALABRAS_CITA = ['cita', 'citas', 'visita', 'visitas', 'hora', 'horas', 'sesion', 'sesiones', 'reunion', 'reuniones', 'revision'];
+
+/**
+ * ¿Está hablando de una cita que ya tiene? "Tenía cita el lunes" y "mi cita
+ * del martes" hablan de una que existe; "quiero una cita" pide una nueva. La
+ * diferencia está en el posesivo y en el tiempo del verbo, y confundirlas
+ * hace que el bot conteste una cosa por otra.
+ */
+export function hablaDeSuCita(texto, config = null) {
+  const t = limpiar(texto);
+  const palabras = [...PALABRAS_CITA];
+  if (config) {
+    palabras.push(sinTildes(config.vocabulario.cita), sinTildes(config.vocabulario.citas));
+  }
+  const nombres = [...new Set(palabras)].join('|');
+  return new RegExp(`\\b(mi|mis)\\s+(${nombres})\\b`).test(t)
+    || new RegExp(`\\bten(ia|iamos|go|emos)\\s+(una\\s+)?(${nombres})\\b`).test(t)
+    || new RegExp(`\\bla\\s+(${nombres})\\s+(de|del)\\b`).test(t)
+    || new RegExp(`\\b(${nombres})\\s+(de|del)\\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy)\\b`).test(t);
+}
+
 function sinElNombreDelServicio(t, config) {
   const servicio = resolverServicio(config, t);
   if (!servicio) return t;
@@ -260,8 +281,13 @@ export function detectarIntencion(texto, config = null) {
   if (esNegacion(bruto)) return 'rechazar';
   const t = config ? sinElNombreDelServicio(bruto, config) : bruto;
   for (const [nombre, patron] of PATRONES) {
-    if (patron.test(t)) return nombre;
+    if (!patron.test(t)) continue;
+    // La palabra "cita" está en todas partes: pedir una y hablar de la que ya
+    // tienes se parecen mucho. Si suena a la suya, no es una reserva nueva.
+    if (nombre === 'reservar' && hablaDeSuCita(bruto, config)) return 'consultar';
+    return nombre;
   }
+  if (hablaDeSuCita(bruto, config)) return 'consultar';
   // Si al quitar el servicio no queda nada que interpretar, es que pedia cita.
   if (config && t !== bruto && resolverServicio(config, texto)) return 'reservar';
   return 'otro';

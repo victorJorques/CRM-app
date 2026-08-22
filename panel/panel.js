@@ -3,7 +3,7 @@
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 let estado = null;
-let diaActual = new Date().toISOString().slice(0, 10);
+let diaActual = null;   // se fija con la zona horaria del negocio al arrancar
 let conversacionAbierta = null;
 let clienteAbierto = null;
 
@@ -21,8 +21,39 @@ async function pedir(ruta, opciones = {}) {
 }
 
 const dinero = (centimos) => (centimos == null ? '' : `${(centimos / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })} €`);
-const horaDe = (ms) => new Date(ms).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
-const fechaDe = (ms) => new Date(ms).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+
+// Las horas se pintan en la hora del NEGOCIO, no en la del ordenador que mira.
+// Si no, el panel dice una hora y el bot le dice otra al cliente, que es la
+// mejor manera de que alguien se plante un día a las nueve y no le toque.
+let zonaNegocio = Intl.DateTimeFormat().resolvedOptions().timeZone;
+let formatoHora = null;
+let formatoFecha = null;
+let formatoCorta = null;
+let formatoDia = null;
+
+function prepararFormatos(zona) {
+  zonaNegocio = zona || zonaNegocio;
+  formatoHora = new Intl.DateTimeFormat('es-ES', { timeZone: zonaNegocio, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+  formatoFecha = new Intl.DateTimeFormat('es-ES', { timeZone: zonaNegocio, weekday: 'long', day: 'numeric', month: 'long' });
+  formatoCorta = new Intl.DateTimeFormat('es-ES', { timeZone: zonaNegocio, day: '2-digit', month: '2-digit' });
+  formatoDia = new Intl.DateTimeFormat('en-CA', { timeZone: zonaNegocio, year: 'numeric', month: '2-digit', day: '2-digit' });
+}
+prepararFormatos(zonaNegocio);
+
+const horaDe = (ms) => formatoHora.format(new Date(ms));
+// Sin la coma que mete el formato del sistema: el bot dice "lunes 24 de
+// agosto" y el panel debe decir lo mismo.
+const fechaDe = (ms) => formatoFecha.format(new Date(ms)).replace(',', '');
+const fechaCorta = (ms) => formatoCorta.format(new Date(ms));
+/** El día de hoy según el negocio, en formato 2026-08-24. */
+const hoyDelNegocio = () => formatoDia.format(new Date());
+
+function sumarDiasClave(clave, salto) {
+  const [anio, mes, dia] = clave.split('-').map(Number);
+  const d = new Date(Date.UTC(anio, mes - 1, dia));
+  d.setUTCDate(d.getUTCDate() + salto);
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+}
 
 // --- Entrar -----------------------------------------------------------------
 
@@ -51,6 +82,7 @@ $$('nav button').forEach((boton) => boton.addEventListener('click', () => {
   if (boton.dataset.vista === 'bandeja') cargarBandeja();
   if (boton.dataset.vista === 'fichas') cargarClientes();
   if (boton.dataset.vista === 'avisos') cargarAvisos();
+  if (boton.dataset.vista === 'simulador') cargarSimClientes();
 }));
 
 // --- Agenda -----------------------------------------------------------------
@@ -62,7 +94,7 @@ async function cargarAgenda() {
     <div class="cifra"><b>${dia.total}</b><span>${dia.total === 1 ? 'cita' : 'citas'}</span></div>
     <div class="cifra"><b>${dinero(dia.previstoCentimos) || '—'}</b><span>previsto</span></div>
     <div class="cifra"><b>${dinero(dia.ingresosCentimos) || '—'}</b><span>cerrado</span></div>
-    <div class="cifra"><b>${dia.abierto ? 'Abierto' : 'Cerrado'}</b><span>${dia.motivoCierre ?? fechaDe(Date.parse(`${diaActual}T12:00`))}</span></div>`;
+    <div class="cifra"><b>${dia.abierto ? 'Abierto' : 'Cerrado'}</b><span>${dia.motivoCierre ?? fechaDe(Date.parse(`${diaActual}T12:00:00Z`))}</span></div>`;
 
   $('#agenda').innerHTML = dia.recursos.map((recurso) => {
     const tramos = recurso.tramos.map((t) => t.join('–')).join(' · ') || 'no trabaja';
@@ -106,12 +138,10 @@ async function accionDeCita(evento) {
 $('#dia').addEventListener('change', (e) => { diaActual = e.target.value; cargarAgenda(); });
 $('#diaAnterior').addEventListener('click', () => moverDia(-1));
 $('#diaSiguiente').addEventListener('click', () => moverDia(1));
-$('#diaHoy').addEventListener('click', () => { diaActual = new Date().toISOString().slice(0, 10); cargarAgenda(); });
+$('#diaHoy').addEventListener('click', () => { diaActual = hoyDelNegocio(); cargarAgenda(); });
 
 function moverDia(salto) {
-  const d = new Date(`${diaActual}T12:00:00`);
-  d.setDate(d.getDate() + salto);
-  diaActual = d.toISOString().slice(0, 10);
+  diaActual = sumarDiasClave(diaActual, salto);
   cargarAgenda();
 }
 
@@ -271,12 +301,12 @@ async function cargarAvisos() {
       <div class="acciones"><button data-accion="hecho" data-id="${r.id}">Hecho</button></div>
     </div>`), 'Nada pendiente.'),
     bloque('Programados', pendientes.map((r) => `<div class="cita">
-      <div class="hora">${new Date(r.cuando).toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit' })}</div>
+      <div class="hora">${fechaCorta(r.cuando)}</div>
       <div><div class="quien">${escapar(r.cliente_nombre || '')}</div><div class="que">${escapar(r.tipo)}</div></div>
       <div class="acciones"><small class="estado">${escapar(r.estado)}</small></div>
     </div>`), 'Nada programado.'),
     bloque('Hace mucho que no vienen', inactivos.map((c) => `<div class="cita">
-      <div class="hora">${c.ultimaVisita ? new Date(c.ultimaVisita).toLocaleDateString('es-ES') : ''}</div>
+      <div class="hora">${c.ultimaVisita ? fechaCorta(c.ultimaVisita) : ''}</div>
       <div><div class="quien">${escapar(c.nombre || 'Sin nombre')}</div><div class="que">${escapar(c.telefono ?? '')}</div></div>
       <div class="acciones"></div>
     </div>`), 'Nadie por ahora.'),
@@ -292,27 +322,73 @@ async function cargarAvisos() {
 
 // --- Simulador --------------------------------------------------------------
 
+// El simulador escribe COMO alguien: o un cliente que ya está en las fichas
+// —con su historial y sus citas— o alguien que llama por primera vez. Probar
+// con un teléfono inventado es justo lo que hace que el bot conteste "no me
+// consta ninguna cita" cuando el cliente jura que la tiene.
+let simTelefono = null;
+
+async function cargarSimClientes() {
+  const lista = await pedir('/api/clientes?limite=60');
+  const conTelefono = lista.filter((c) => c.telefono);
+  $('#simCliente').innerHTML = [
+    ...conTelefono.map((c) => `<option value="${escapar(c.telefono)}" data-id="${c.id}">${escapar(c.nombre || 'Sin nombre')} · ${escapar(c.telefono)}</option>`),
+    '<option value="nuevo">Alguien que llama por primera vez</option>',
+  ].join('');
+  await elegirSimCliente();
+}
+
+async function elegirSimCliente() {
+  const opcion = $('#simCliente').selectedOptions[0];
+  if (!opcion) return;
+  if (opcion.value === 'nuevo') {
+    simTelefono = `+34600${String(Math.floor(Math.random() * 900000) + 100000)}`;
+    $('#simFicha').textContent = `Nadie conocido: ${simTelefono}. El bot no tiene historial suyo.`;
+  } else {
+    simTelefono = opcion.value;
+    const ficha = await pedir(`/api/clientes/${opcion.dataset.id}`);
+    const proxima = ficha.proxima
+      ? `tiene ${ficha.proxima.servicio_nombre} el ${fechaDe(ficha.proxima.inicio)} a las ${horaDe(ficha.proxima.inicio)}`
+      : 'no tiene ninguna cita pendiente';
+    $('#simFicha').textContent = `${ficha.nombre || 'Sin nombre'} ${proxima} · ${ficha.atendidas} visitas · ${dinero(ficha.gastoCentimos) || '0 €'}`;
+  }
+  await cargarSimHistorial();
+}
+
+/** Si ya se ha hablado con esa persona en el simulador, se sigue por donde iba. */
+async function cargarSimHistorial() {
+  $('#simChat').innerHTML = '';
+  const conversaciones = await pedir('/api/bandeja?canal=simulador&limite=60');
+  const suya = conversaciones.find((c) => c.externo === simTelefono);
+  if (!suya) return;
+  const datos = await pedir(`/api/bandeja/${suya.id}`);
+  for (const mensaje of datos.mensajes) {
+    if (mensaje.autor === 'sistema') añadirRastro(mensaje.texto);
+    else añadirTurno(mensaje.autor === 'cliente' ? 'cliente' : 'bot', mensaje.texto);
+  }
+}
+
+$('#simCliente').addEventListener('change', () => { elegirSimCliente(); });
+
 $('#simForm').addEventListener('submit', async (evento) => {
   evento.preventDefault();
   const texto = $('#simTexto').value.trim();
-  if (!texto) return;
+  if (!texto || !simTelefono) return;
   $('#simTexto').value = '';
   añadirTurno('cliente', texto);
   const respuesta = await pedir('/api/simulador', {
     method: 'POST',
-    cuerpo: { texto, externo: $('#simTelefono').value, telefono: $('#simTelefono').value },
+    cuerpo: { texto, externo: simTelefono, telefono: simTelefono },
   });
   if (respuesta.acciones?.length) {
     añadirRastro(respuesta.acciones.map((a) => a.herramienta).join(' → '));
   }
   añadirTurno('bot', respuesta.texto ?? '(el bot no contesta: lo lleva una persona)');
+  elegirSimCliente();
   cargarEstado();
 });
 
-$('#simReiniciar').addEventListener('click', () => {
-  $('#simChat').innerHTML = '';
-  $('#simTelefono').value = `+346000000${String(Math.floor(Math.random() * 90) + 10)}`;
-});
+$('#simReiniciar').addEventListener('click', () => { cargarSimClientes(); });
 
 function añadirTurno(quien, texto) {
   const div = document.createElement('div');
@@ -333,6 +409,8 @@ function añadirRastro(texto) {
 
 async function cargarEstado() {
   estado = await pedir('/api/estado');
+  prepararFormatos(estado.negocio.zonaHoraria);
+  if (!diaActual) diaActual = hoyDelNegocio();
   $('#negocio').textContent = estado.negocio.nombre;
   $('#cerebro').textContent = estado.cerebro === 'claude' ? 'con Claude' : 'cerebro de reglas';
   $('#contadorBandeja').textContent = estado.sinLeer || '';

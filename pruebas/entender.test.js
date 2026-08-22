@@ -131,6 +131,24 @@ test('un servicio que se llama como un verbo no confunde la intención', () => {
   assert.equal(e.detectarIntencion('un cambio de aceite', config), 'reservar');
 });
 
+test('distingue hablar de su cita de pedir una nueva', () => {
+  const { config } = revisarConfig(plantilla('dentista'));
+  assert.equal(e.detectarIntencion('hola, tenía cita el lunes 24/08/26 a las 9', config), 'consultar');
+  assert.equal(e.detectarIntencion('mi visita del martes', config), 'consultar');
+  assert.equal(e.detectarIntencion('la cita del jueves a qué hora era', config), 'consultar');
+  assert.equal(e.detectarIntencion('quiero una cita', config), 'reservar');
+  assert.equal(e.detectarIntencion('quiero pedir cita para una limpieza', config), 'reservar');
+  assert.equal(e.detectarIntencion('necesito hora para una limpieza', config), 'reservar');
+});
+
+test('hablar de su cita se reconoce con el vocabulario de cada negocio', () => {
+  const { config: clinica } = revisarConfig(plantilla('dentista'));
+  const { config: fisio } = revisarConfig(plantilla('fisioterapia'));
+  assert.ok(e.hablaDeSuCita('tenía visita el lunes', clinica));
+  assert.ok(e.hablaDeSuCita('mi sesión del martes', fisio));
+  assert.ok(!e.hablaDeSuCita('quiero una sesión', fisio));
+});
+
 test('distingue un sí de un no', () => {
   assert.ok(e.esAfirmacion('sí, confirmo'));
   assert.ok(e.esAfirmacion('vale'));

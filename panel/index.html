@@ -76,9 +76,12 @@
       <section id="vista-simulador" class="vista oculto">
         <p class="nota">Escríbele como si fueras un cliente. Lo que pasa aquí es real: las citas se reservan de verdad.</p>
         <div class="barra">
-          <input id="simTelefono" placeholder="Teléfono del cliente de mentira" value="+34600000001">
+          <label class="quien">Escribes como
+            <select id="simCliente"></select>
+          </label>
           <button id="simReiniciar">Empezar de cero</button>
         </div>
+        <p id="simFicha" class="nota"></p>
         <div id="simChat" class="chat"></div>
         <form id="simForm" class="escribir">
           <input id="simTexto" placeholder="Escribe aquí…" autocomplete="off">

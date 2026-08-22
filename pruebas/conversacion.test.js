@@ -222,3 +222,105 @@ test('el cerebro que contesta queda apuntado en el mensaje', async () => {
   const ultimo = bandeja.mensajesDe(entorno.db, conversacion.id).at(-1);
   assert.equal(JSON.parse(ultimo.datos).cerebro, 'reglas');
 });
+
+// --- Lo que pasó en la demostración con la clínica --------------------------
+// Una clienta escribió diciendo que tenía cita el lunes a las 9 y el bot le
+// contestó que no tenía ninguna. Dos fallos en uno: no la reconocía, y encima
+// le llevaba la contraria.
+
+// Por defecto, la cita es del mismo número desde el que se escribe en estas
+// pruebas: es el caso normal. Los teléfonos distintos se piden a propósito.
+function conVisita(entorno, { telefono = '+34600111222', nombre = 'Carmen Ortiz', clave = LUNES, hora = 9 } = {}) {
+  const quien = clientes.buscarOCrear(entorno.db, { nombre, telefono });
+  const reserva = citas.reservar(entorno.db, entorno.config, {
+    servicioId: 'corte', inicio: instante(clave, hora), clienteId: quien.id, ahora: entorno.ahora,
+  });
+  return { quien, cita: reserva.cita };
+}
+
+test('"tenía cita el lunes a las 9" habla de la suya, no pide una nueva', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno);
+  const respuesta = await charla(entorno)('hola, tenía cita el lunes 24/08/26 a las 9');
+  assert.match(respuesta.texto, /lunes 24 de agosto a las 09:00/);
+  assert.ok(!/¿Para qué servicio/i.test(respuesta.texto));
+  assert.equal(entorno.db.valor('SELECT COUNT(*) FROM citas'), 1);
+  assert.equal(citas.porId(entorno.db, cita.id).estado, 'reservada');
+});
+
+test('si no aparece su cita, no se le dice que no la tiene', async () => {
+  const entorno = montar();
+  conVisita(entorno, { telefono: '+34600111230' });   // la cita es de otro número
+  const respuesta = await charla(entorno, '+34600999000')('tenía cita el lunes a las 9');
+  assert.ok(!/no tienes|no me consta ninguna/i.test(respuesta.texto));
+  assert.match(respuesta.texto, /no quiere decir que no la tengas/i);
+  assert.match(respuesta.texto, /equipo/i);
+});
+
+test('cuando no aparece, queda apuntado para que lo mire una persona', async () => {
+  const entorno = montar();
+  await charla(entorno, '+34600999000')('tenía cita el lunes a las 9');
+  const conversacion = bandeja.listar(entorno.db)[0];
+  const notas = bandeja.mensajesDe(entorno.db, conversacion.id).filter((m) => m.autor === 'sistema');
+  assert.equal(notas.length, 1);
+  assert.match(notas[0].texto, /no aparece con este contacto/i);
+  const eventos = entorno.db.filas("SELECT tipo FROM eventos WHERE tipo = 'cita.no-aparece'");
+  assert.equal(eventos.length, 1);
+});
+
+test('si insiste en que la tiene, deja de contestar el bot', async () => {
+  const entorno = montar();
+  const decir = charla(entorno, '+34600999000');
+  await decir('tenía cita el lunes a las 9');
+  const segunda = await decir('que sí, que tengo cita el lunes, miradlo bien');
+  assert.match(segunda.texto, /Aviso a alguien del equipo/);
+  assert.equal(segunda.conversacion.estado, 'humano');
+});
+
+test('"otro día de esta semana por la mañana" no ofrece su mismo día', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno);
+  const decir = charla(entorno);
+  await decir('tenía cita el lunes a las 9');
+  const respuesta = await decir('quería cambiarla a otro día de esta semana por la mañana');
+  // Le recuerda la que tiene, no le ofrece su mismo día, y lo que ofrece es
+  // de mañana, que es lo que ha pedido.
+  assert.match(respuesta.texto, /Ahora tienes Corte el lunes 24 de agosto a las 09:00/);
+  assert.ok(!/El lunes 24 de agosto tengo/.test(respuesta.texto));
+  const horas = respuesta.texto.split('.').at(-2).match(/\d{2}:\d{2}/g) ?? [];
+  assert.ok(horas.length > 0);
+  assert.ok(horas.every((h) => Number(h.slice(0, 2)) < 14), `ofrece tardes: ${horas}`);
+});
+
+test('cambiar de día mueve la cita, no crea otra', async () => {
+  const entorno = montar();
+  const { quien, cita } = conVisita(entorno);
+  const decir = charla(entorno);
+  await decir('tenía cita el lunes a las 9');
+  await decir('quería cambiarla a otro día de esta semana por la mañana');
+  const propuesta = await decir('la primera');
+  assert.match(propuesta.texto, /¿Te la cambio al/);
+  const hecho = await decir('sí');
+  assert.match(hecho.texto, /Cambiada/);
+  assert.equal(citas.deCliente(entorno.db, quien.id).length, 1);
+  const despues = citas.porId(entorno.db, cita.id);
+  assert.notEqual(despues.inicio, instante(LUNES, 9));
+  assert.equal(despues.estado, 'reservada');
+});
+
+test('si pregunta por una cita concreta, no se le recitan todas', async () => {
+  const entorno = montar();
+  conVisita(entorno);                                   // lunes a las 9
+  conVisita(entorno, { clave: MARTES, hora: 12 });      // y otra el martes
+  const respuesta = await charla(entorno)('tenía cita el lunes a las 9');
+  assert.match(respuesta.texto, /lunes 24 de agosto a las 09:00/);
+  assert.ok(!/martes/.test(respuesta.texto));
+});
+
+test('quien sí tiene cita la ve confirmada al preguntar', async () => {
+  const entorno = montar();
+  conVisita(entorno);
+  const respuesta = await charla(entorno)('¿cuándo tengo la cita?');
+  assert.match(respuesta.texto, /Corte/);
+  assert.match(respuesta.texto, /¿Quieres cambiarla o anularla\?/);
+});

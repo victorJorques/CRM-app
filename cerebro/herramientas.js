@@ -186,6 +186,9 @@ export function ejecutar(nombre, entrada = {}, ctx) {
         const recurso = entrada.recurso ? resolverRecurso(config, entrada.recurso) : null;
         const desde = entrada.dia ? resolverDia(entrada.dia, { zona: config.negocio.zonaHoraria, ahora }) : null;
         if (entrada.dia && !desde) return fallo('dia-no-entendido', `No he entendido el día "${entrada.dia}".`);
+        // `excluir_dia` no está en el esquema que ve el modelo: lo usa el cerebro
+        // de reglas cuando el cliente pide expresamente otro día.
+        const excluirDias = entrada.excluir_dia ? [entrada.excluir_dia] : [];
         const { huecos } = buscarHuecos(db, config, {
           servicioId: servicio.id,
           desde,
@@ -194,6 +197,7 @@ export function ejecutar(nombre, entrada = {}, ctx) {
           dias: entrada.dia ? 1 : 14,
           ahora,
           limite: config.reglas.huecosQueOfrece ?? 4,
+          excluirDias,
         });
         if (huecos.length === 0) {
           // Caso frecuente: ese día sí hay huecos, pero no en la franja que

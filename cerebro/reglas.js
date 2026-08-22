@@ -13,8 +13,9 @@ import {
 } from './entender.js';
 import * as redaccion from '../nucleo/redaccion.js';
 import * as clientes from '../nucleo/clientes.js';
+import * as bandeja from '../nucleo/bandeja.js';
 import { sinTildes } from '../nucleo/config.js';
-import { fechaYHora } from '../nucleo/tiempo.js';
+import { fechaYHora, claveDia, instanteDe } from '../nucleo/tiempo.js';
 
 const MAX_SIN_ENTENDER = 2;
 
@@ -66,6 +67,16 @@ export function responder(texto, ctx) {
   // --- 2. Hay una propuesta encima de la mesa ---
   if (memoria.paso === 'confirmando' && memoria.propuesta) {
     if (esAfirmacion(texto)) {
+      if (memoria.pendiente === 'mover') {
+        const r = usar('mover_cita', {
+          dia: memoria.propuesta.dia,
+          hora: memoria.propuesta.hora,
+          cita_id: memoria.citaId ?? undefined,
+        });
+        return cerrar(r.resumen, r.ok
+          ? { paso: 'inicio', pendiente: null, propuesta: null, huecos: [], citaId: null }
+          : { paso: 'moviendo', propuesta: null, huecos: (r._huecos ?? []).map(ligero) });
+      }
       const nombre = extraerNombre(texto) ?? ficha?.nombre ?? ctx.contacto?.nombre ?? null;
       if (!nombre) return cerrar('Perfecto. ¿A nombre de quién la apunto?', { paso: 'pidiendo_nombre' });
       return cerrarReserva(ctx, memoria, usar, cerrar, nombre);
@@ -86,10 +97,17 @@ export function responder(texto, ctx) {
   }
 
   // --- 3. Estabamos ofreciendo horas y el cliente elige una ---
-  if ((memoria.paso === 'eligiendo_hora' || memoria.paso === 'confirmando') && memoria.huecos?.length) {
+  if ((memoria.paso === 'eligiendo_hora' || memoria.paso === 'confirmando' || memoria.paso === 'moviendo')
+    && memoria.huecos?.length) {
     const elegido = elegirDeLaLista(texto, memoria.huecos);
     if (elegido) {
       const servicio = config.servicios.find((s) => s.id === memoria.servicioId);
+      if (memoria.pendiente === 'mover') {
+        return cerrar(
+          `¿Te la cambio al ${fechaYHora(config.negocio.zonaHoraria, elegido.inicio)}?`,
+          { paso: 'confirmando', propuesta: elegido },
+        );
+      }
       return cerrar(
         redaccion.propuesta(config, { servicio, hueco: { ...elegido }, ahora }),
         { paso: 'confirmando', propuesta: elegido },
@@ -116,7 +134,7 @@ export function responder(texto, ctx) {
     }
     const mias = usar('mis_citas', {});
     const lista = mias._citas ?? [];
-    if (lista.length === 0) return cerrar(`No me consta ninguna ${v.cita} pendiente a tu nombre.`, { paso: 'inicio' });
+    if (lista.length === 0) return noLaEncontramos(ctx, texto, usar, cerrar, ahora, memoria);
     if (lista.length === 1) {
       return cerrar(
         `¿Te anulo ${v.laCita} de ${lista[0].servicio_nombre} del ${fechaYHora(config.negocio.zonaHoraria, lista[0].inicio)}?`,
@@ -143,23 +161,71 @@ export function responder(texto, ctx) {
     }
     const mias = usar('mis_citas', {});
     const lista = mias._citas ?? [];
-    if (lista.length === 0) return cerrar(`No me consta ninguna ${v.cita} pendiente a tu nombre.`, { paso: 'inicio' });
-    if (dia && horaTexto === null) {
-      const r = usar('buscar_huecos', { servicio: lista[0].servicio_nombre, dia, franja: resolverFranja(texto) ?? undefined });
-      return cerrar(r.resumen ?? '¿A qué hora te viene bien?', {
-        paso: 'moviendo', citaId: lista[0].id, huecos: (r._huecos ?? []).map(ligero), servicioId: lista[0].servicio_id, servicioNombre: lista[0].servicio_nombre,
+    if (lista.length === 0) return noLaEncontramos(ctx, texto, usar, cerrar, ahora, memoria);
+    const suya = memoria.citaId ? lista.find((c) => c.id === memoria.citaId) ?? lista[0] : lista[0];
+
+    // "Otro día de esta semana por la mañana" ya dice bastante: no hace falta
+    // preguntar día y hora, basta con enseñarle lo que hay.
+    const franja = resolverFranja(texto);
+    if (dia || franja) {
+      // Quien pide "otro día" no quiere que le ofrezcan el suyo, y desde luego
+      // no su misma hora: eso es no haber escuchado.
+      const quiereOtroDia = /\botr[oa]\s+(dia|fecha|jornada)\b/.test(limpiar(texto));
+      const suDia = claveDia(config.negocio.zonaHoraria, suya.inicio);
+      const r = usar('buscar_huecos', {
+        servicio: suya.servicio_nombre,
+        dia: dia ?? undefined,
+        franja: franja ?? undefined,
+        excluir_dia: quiereOtroDia && !dia ? suDia : undefined,
+      });
+      const utiles = (r._huecos ?? []).filter((h) => h.inicio !== suya.inicio);
+
+      const recordatorio = `Ahora tienes ${suya.servicio_nombre} el ${fechaYHora(config.negocio.zonaHoraria, suya.inicio)}.`;
+      const oferta = utiles.length
+        ? redaccion.ofertaDeHuecos(config, utiles, { ahora })
+        : 'No me queda nada por ahí. ¿Miramos otra semana?';
+      return cerrar(`${recordatorio} ${oferta}`, {
+        paso: 'moviendo',
+        pendiente: 'mover',
+        citaId: suya.id,
+        huecos: utiles.map(ligero),
+        servicioId: suya.servicio_id,
+        servicioNombre: suya.servicio_nombre,
+        dia: dia ?? null,
       });
     }
     return cerrar(
-      `Tienes ${lista[0].servicio_nombre} el ${fechaYHora(config.negocio.zonaHoraria, lista[0].inicio)}. ¿Para qué día y hora la muevo?`,
-      { paso: 'moviendo', citaId: lista[0].id },
+      `Tienes ${suya.servicio_nombre} el ${fechaYHora(config.negocio.zonaHoraria, suya.inicio)}. ¿Para qué día y hora la muevo?`,
+      { paso: 'moviendo', pendiente: 'mover', citaId: suya.id, servicioNombre: suya.servicio_nombre },
     );
   }
 
   // --- 6. Preguntas de siempre ----------------------------------------------
   if (intencion === 'consultar') {
     const r = usar('mis_citas', {});
-    return cerrar(r._citas?.length ? `Tienes ${r.resumen}.` : r.resumen, { paso: 'inicio' });
+    const suyas = r._citas ?? [];
+    if (suyas.length) {
+      // Si ha dicho un día (y quizá una hora), se le contesta por ESA, no por
+      // la lista entera: preguntar por una y que te reciten cuatro molesta.
+      const diaDicho = resolverDia(texto, { zona: config.negocio.zonaHoraria, ahora });
+      const horaDicha = resolverHora(texto);
+      const encaja = suyas.filter((c) => {
+        if (diaDicho && claveDia(config.negocio.zonaHoraria, c.inicio) !== diaDicho) return false;
+        if (horaDicha !== null && diaDicho) {
+          const enPunto = desambiguarConHorario(config, horaDicha, diaDicho, { explicita: horaEsExplicita(texto) });
+          return Math.abs(c.inicio - (instanteDe(config.negocio.zonaHoraria, diaDicho, enPunto) ?? 0)) < 3600000;
+        }
+        return true;
+      });
+      const elegidas = encaja.length ? encaja : suyas;
+      const contadas = elegidas.slice(0, 3).map((c) => `${c.servicio_nombre}, ${fechaYHora(config.negocio.zonaHoraria, c.inicio)}`);
+      const cola = elegidas.length > 3 ? ` Y ${elegidas.length - 3} más.` : '';
+      return cerrar(
+        `Sí: ${contadas.join('. ')}.${cola} ¿Quieres cambiarla o anularla?`,
+        { paso: 'inicio', citaId: elegidas[0].id, servicioNombre: elegidas[0].servicio_nombre },
+      );
+    }
+    return noLaEncontramos(ctx, texto, usar, cerrar, ahora, memoria);
   }
   if (intencion === 'horario') return cerrar(usar('info_negocio', { que: 'horario' }).resumen, { paso: 'inicio' });
   if (intencion === 'direccion') return cerrar(usar('info_negocio', { que: 'direccion' }).resumen, { paso: 'inicio' });
@@ -249,6 +315,51 @@ export function responder(texto, ctx) {
     acciones,
     memoria: { ...memoria, sinEntender: fallos },
   };
+}
+
+/**
+ * El cliente dice que tiene cita y no aparece. Se le contesta sin llevarle la
+ * contraria, queda apuntado en la bandeja para que lo mire una persona, y se
+ * le ofrece hueco por si al final hay que dársela de nuevo.
+ */
+function noLaEncontramos(ctx, texto, usar, cerrar, ahora, memoria = {}) {
+  const { db, config } = ctx;
+  // Si ya se lo dijimos una vez y sigue diciendo que la tiene, esto ya no lo
+  // arregla un bot: que lo coja una persona.
+  if (memoria.noAparece) {
+    const r = usar('escalar', { motivo: `Insiste en que tiene ${config.vocabulario.cita} y no aparece` });
+    return cerrar(`Sigo sin verla, así que prefiero no darte largas: ${r.resumen}`, {
+      paso: 'inicio', noAparece: false, pendiente: null,
+    });
+  }
+  if (ctx.conversacion) {
+    bandeja.nota(db, ctx.conversacion.id,
+      `Dice que tiene ${config.vocabulario.cita} y no aparece con este contacto. Comprobadlo: puede estar a otro nombre o con otro teléfono.`);
+    db.apuntar('cita.no-aparece', ctx.conversacion.id, { texto: String(texto).slice(0, 200) });
+  }
+  const servicio = resolverServicio(config, texto);
+  const dia = resolverDia(texto, { zona: config.negocio.zonaHoraria, ahora });
+  const franja = resolverFranja(texto);
+  const aviso = redaccion.noLaEncuentro(config);
+
+  if (servicio) {
+    const r = usar('buscar_huecos', {
+      servicio: servicio.nombre, dia: dia ?? undefined, franja: franja ?? undefined,
+    });
+    if (r.ok && r._huecos?.length) {
+      return cerrar(`${aviso} Mientras tanto, si quieres te doy hora: ${r.resumen}`, {
+        paso: 'eligiendo_hora',
+        noAparece: true,
+        servicioId: servicio.id,
+        servicioNombre: servicio.nombre,
+        dia: dia ?? null,
+        huecos: r._huecos.map(ligero),
+      });
+    }
+  }
+  return cerrar(`${aviso} ¿Quieres que te busque hueco mientras tanto? Dime para qué y qué día te viene bien.`, {
+    paso: 'eligiendo_servicio', citaId: null, pendiente: null, noAparece: true,
+  });
 }
 
 function cerrarReserva(ctx, memoria, usar, cerrar, nombre) {

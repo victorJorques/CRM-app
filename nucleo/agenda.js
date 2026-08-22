@@ -137,7 +137,7 @@ export function huecosDelDia(db, config, {
  */
 export function buscarHuecos(db, config, {
   servicioId, desde = null, dias = 14, franja = null, recursoId = null,
-  limite = config.reglas.huecosQueOfrece ?? 4, ahora = Date.now(),
+  limite = config.reglas.huecosQueOfrece ?? 4, ahora = Date.now(), excluirDias = [],
 } = {}) {
   const zona = config.negocio.zonaHoraria;
   const servicio = servicioPorId(config, servicioId);
@@ -153,6 +153,8 @@ export function buscarHuecos(db, config, {
   for (let i = 0; i < tope && huecos.length < limite; i += 1) {
     const dia = i === 0 ? clave : sumarDias(clave, i);
     if (diasEntre(hoy, dia) > (config.reglas.antelacionMaximaDias ?? 60)) break;
+    // Quien pide "otro día" no quiere ver el suyo entre las opciones.
+    if (excluirDias.includes(dia)) continue;
     const delDia = huecosDelDia(db, config, {
       servicioId, clave: dia, recursoId, franja, ahora, limite: limite - huecos.length,
     });
