@@ -154,9 +154,9 @@ maqueta: las citas se reservan de verdad, solo que al recargar se empieza de
 cero y nada sale de tu ordenador.
 
 ```
-npm --prefix /tmp/conserje-demo i sql.js esbuild        # solo para construir
-node demo-web/construir.mjs /tmp/conserje-demo/node_modules/sql.js/dist
-→ demo-web/salida/conserje-demo.html
+npm install --no-save sql.js esbuild    # solo para construir la demostración
+node demo-web/construir.mjs
+→ demo-web/salida/conserje-demo.html    # ábrelo con doble clic
 ```
 
 Conserje no depende de nada para funcionar; esas dos herramientas hacen falta

@@ -2,7 +2,8 @@
 // ---------------------------------------------------------------------------
 // Empaqueta Conserje en una sola página web que funciona sin servidor.
 //
-//   node demo-web/construir.mjs              (necesita esbuild y sql.js)
+//   npm install --no-save sql.js esbuild     (solo para construir)
+//   node demo-web/construir.mjs
 //   node demo-web/construir.mjs --motor=wasm  (más rápido, pero pide permiso
 //                                              de WebAssembly en la página)
 //   → demo-web/salida/conserje-demo.html
