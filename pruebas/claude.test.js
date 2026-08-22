@@ -94,6 +94,9 @@ test('las instrucciones llevan el negocio y sus normas', async () => {
   assert.match(sistema, /No le lleves la contraria/);
   assert.match(sistema, /no le ofrezcas el mismo día que ya tiene/);
   assert.match(sistema, /Cambia siempre con mover_cita/);
+  assert.match(sistema, /no le recites las otras/);
+  assert.match(sistema, /acto seguido dale UNA alternativa/);
+  assert.match(sistema, /no existen para esta conversación/);
 });
 
 test('cuando el modelo usa una herramienta, se ejecuta de verdad', async () => {

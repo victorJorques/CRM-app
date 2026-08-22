@@ -317,10 +317,35 @@ test('si pregunta por una cita concreta, no se le recitan todas', async () => {
   assert.ok(!/martes/.test(respuesta.texto));
 });
 
-test('quien sí tiene cita la ve confirmada al preguntar', async () => {
+test('reconoce la cita y ofrece una alternativa concreta, con día y hora', async () => {
+  const entorno = montar();
+  conVisita(entorno);                                  // Corte el lunes a las 9
+  const respuesta = await charla(entorno)('¿cuándo tengo la cita?');
+  // Primero se la reconoce...
+  assert.match(respuesta.texto, /Sí, tienes Corte el lunes 24 de agosto a las 09:00/);
+  // ...y acto seguido una hora concreta que puede apuntar
+  assert.match(respuesta.texto, /te puedo dar el \w+ \d{1,2} de \w+ a las \d{2}:\d{2}/);
+  assert.match(respuesta.texto, /¿Te la cambio\?/);
+});
+
+test('la alternativa que ofrece nunca es el mismo día que ya tiene', async () => {
   const entorno = montar();
   conVisita(entorno);
-  const respuesta = await charla(entorno)('¿cuándo tengo la cita?');
-  assert.match(respuesta.texto, /Corte/);
-  assert.match(respuesta.texto, /¿Quieres cambiarla o anularla\?/);
+  const respuesta = await charla(entorno)('tenía cita el lunes a las 9');
+  const ofrecida = /te puedo dar el ([^.]+)\./.exec(respuesta.texto)?.[1] ?? '';
+  assert.ok(ofrecida, `no ofrece nada: ${respuesta.texto}`);
+  assert.ok(!ofrecida.includes('lunes 24'), `le ofrece su mismo día: ${ofrecida}`);
+});
+
+test('y con un sí queda cambiada', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno);
+  const decir = charla(entorno);
+  await decir('tenía cita el lunes a las 9');
+  const hecho = await decir('sí');
+  assert.match(hecho.texto, /Cambiada/);
+  const despues = citas.porId(entorno.db, cita.id);
+  assert.notEqual(despues.inicio, instante(LUNES, 9));
+  assert.equal(despues.estado, 'reservada');
+  assert.equal(citas.deCliente(entorno.db, despues.cliente_id).length, 1);
 });

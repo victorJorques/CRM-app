@@ -15,7 +15,7 @@ import * as redaccion from '../nucleo/redaccion.js';
 import * as clientes from '../nucleo/clientes.js';
 import * as bandeja from '../nucleo/bandeja.js';
 import { sinTildes } from '../nucleo/config.js';
-import { fechaYHora, claveDia, instanteDe } from '../nucleo/tiempo.js';
+import { fechaYHora, claveDia, minutosDelDia } from '../nucleo/tiempo.js';
 
 const MAX_SIN_ENTENDER = 2;
 
@@ -204,27 +204,7 @@ export function responder(texto, ctx) {
   if (intencion === 'consultar') {
     const r = usar('mis_citas', {});
     const suyas = r._citas ?? [];
-    if (suyas.length) {
-      // Si ha dicho un día (y quizá una hora), se le contesta por ESA, no por
-      // la lista entera: preguntar por una y que te reciten cuatro molesta.
-      const diaDicho = resolverDia(texto, { zona: config.negocio.zonaHoraria, ahora });
-      const horaDicha = resolverHora(texto);
-      const encaja = suyas.filter((c) => {
-        if (diaDicho && claveDia(config.negocio.zonaHoraria, c.inicio) !== diaDicho) return false;
-        if (horaDicha !== null && diaDicho) {
-          const enPunto = desambiguarConHorario(config, horaDicha, diaDicho, { explicita: horaEsExplicita(texto) });
-          return Math.abs(c.inicio - (instanteDe(config.negocio.zonaHoraria, diaDicho, enPunto) ?? 0)) < 3600000;
-        }
-        return true;
-      });
-      const elegidas = encaja.length ? encaja : suyas;
-      const contadas = elegidas.slice(0, 3).map((c) => `${c.servicio_nombre}, ${fechaYHora(config.negocio.zonaHoraria, c.inicio)}`);
-      const cola = elegidas.length > 3 ? ` Y ${elegidas.length - 3} más.` : '';
-      return cerrar(
-        `Sí: ${contadas.join('. ')}.${cola} ¿Quieres cambiarla o anularla?`,
-        { paso: 'inicio', citaId: elegidas[0].id, servicioNombre: elegidas[0].servicio_nombre },
-      );
-    }
+    if (suyas.length) return contestarPorLaSuya(config, suyas, texto, ahora, cerrar, usar);
     return noLaEncontramos(ctx, texto, usar, cerrar, ahora, memoria);
   }
   if (intencion === 'horario') return cerrar(usar('info_negocio', { que: 'horario' }).resumen, { paso: 'inicio' });
@@ -315,6 +295,87 @@ export function responder(texto, ctx) {
     acciones,
     memoria: { ...memoria, sinEntender: fallos },
   };
+}
+
+/**
+ * Contesta por LA cita por la que pregunta, no por todas las que tiene.
+ *
+ * Preguntar "¿tenía cita a las 9?" y que te reciten cuatro citas no es solo
+ * pesado: parece que te estén leyendo la ficha de otro. Si dice un día o una
+ * hora, se le contesta por esa; si no dice nada, entonces sí, la lista.
+ */
+function contestarPorLaSuya(config, suyas, texto, ahora, cerrar, usar) {
+  const zona = config.negocio.zonaHoraria;
+  const diaDicho = resolverDia(texto, { zona, ahora });
+  const horaDicha = resolverHora(texto);
+  const comoSeDice = (cita) => `${cita.servicio_nombre}, ${fechaYHora(zona, cita.inicio)}`;
+  const cerrarCon = (frase, cita) => cerrar(frase, {
+    paso: 'inicio', citaId: cita.id, servicioNombre: cita.servicio_nombre,
+  });
+
+  /**
+   * Reconocerle la cita y, acto seguido, darle UNA alternativa concreta con
+   * día, fecha y hora. Nada de "¿quieres cambiarla?" y esperar: si ha
+   * escrito, es que quiere algo, y lo que necesita es una hora que apuntar.
+   */
+  const conAlternativa = (cita) => {
+    // La alternativa se busca OTRO día: ofrecerle quince minutos más tarde no
+    // es una alternativa, es no haber entendido para qué escribe.
+    const otra = usar('buscar_huecos', {
+      servicio: cita.servicio_nombre,
+      excluir_dia: claveDia(zona, cita.inicio),
+    });
+    const libre = (otra._huecos ?? [])[0];
+    if (!libre) {
+      return cerrarCon(`Sí, tienes ${cita.servicio_nombre} el ${fechaYHora(zona, cita.inicio)}. ¿Quieres cambiarla o anularla?`, cita);
+    }
+    return cerrar(
+      `Sí, tienes ${cita.servicio_nombre} el ${fechaYHora(zona, cita.inicio)}. Si quieres cambiarla, te puedo dar el ${fechaYHora(zona, libre.inicio)}. ¿Te la cambio?`,
+      {
+        paso: 'confirmando',
+        pendiente: 'mover',
+        propuesta: ligero(libre),
+        citaId: cita.id,
+        servicioId: cita.servicio_id,
+        servicioNombre: cita.servicio_nombre,
+        huecos: (otra._huecos ?? []).map(ligero),
+        dia: null,
+      },
+    );
+  };
+
+  if (diaDicho || horaDicha !== null) {
+    const encaja = suyas.filter((cita) => {
+      if (diaDicho && claveDia(zona, cita.inicio) !== diaDicho) return false;
+      if (horaDicha === null) return true;
+      const enPunto = desambiguarConHorario(config, horaDicha, diaDicho ?? claveDia(zona, cita.inicio), {
+        explicita: horaEsExplicita(texto),
+      });
+      // Media hora de margen: quien dice "a las 9" puede tenerla a las 9:15.
+      return Math.abs(minutosDelDia(zona, cita.inicio) - enPunto) <= 30;
+    });
+
+    if (encaja.length === 1) return conAlternativa(encaja[0]);
+    if (encaja.length > 1) {
+      return cerrarCon(
+        `Tienes dos a esa hora: ${encaja.slice(0, 2).map(comoSeDice).join(', y ')}. ¿Cuál de las dos?`,
+        encaja[0],
+      );
+    }
+    // No cuadra ninguna: se dice, y se le enseña la que sí tiene. Sin recitar.
+    const proxima = suyas[0];
+    return cerrarCon(
+      `A esa hora no me sale nada tuyo. Lo que sí tienes es ${proxima.servicio_nombre} el ${fechaYHora(zona, proxima.inicio)}. ¿Es esa?`,
+      proxima,
+    );
+  }
+
+  // No ha concretado. Si solo tiene una, misma respuesta que arriba: se le
+  // reconoce y se le da hora. Si tiene varias, se las enseña y elige.
+  if (suyas.length === 1) return conAlternativa(suyas[0]);
+  const contadas = suyas.slice(0, 3).map(comoSeDice);
+  const cola = suyas.length > 3 ? ` Y ${suyas.length - 3} más.` : '';
+  return cerrarCon(`Tienes ${contadas.join('. ')}.${cola} ¿Cuál quieres cambiar o anular?`, suyas[0]);
 }
 
 /**

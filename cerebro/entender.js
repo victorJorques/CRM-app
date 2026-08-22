@@ -260,7 +260,10 @@ export function hablaDeSuCita(texto, config = null) {
   return new RegExp(`\\b(mi|mis)\\s+(${nombres})\\b`).test(t)
     || new RegExp(`\\bten(ia|iamos|go|emos)\\s+(una\\s+)?(${nombres})\\b`).test(t)
     || new RegExp(`\\bla\\s+(${nombres})\\s+(de|del)\\b`).test(t)
-    || new RegExp(`\\b(${nombres})\\s+(de|del)\\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy)\\b`).test(t);
+    || new RegExp(`\\b(${nombres})\\s+(de|del)\\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo|manana|hoy)\\b`).test(t)
+    // "¿qué citas tengo?", "¿cuántas visitas tengo?", "¿cuándo es mi sesión?"
+    || new RegExp(`\\b(que|cuantas|cuantos)\\s+(${nombres})\\s+ten(go|ia|emos)\\b`).test(t)
+    || new RegExp(`\\bcuando\\s+(es|era|tengo)\\b.*\\b(${nombres})\\b`).test(t);
 }
 
 function sinElNombreDelServicio(t, config) {
