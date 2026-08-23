@@ -349,3 +349,54 @@ test('y con un sí queda cambiada', async () => {
   assert.equal(despues.estado, 'reservada');
   assert.equal(citas.deCliente(entorno.db, despues.cliente_id).length, 1);
 });
+
+// --- Cambiar de hora el mismo día ------------------------------------------
+// Luis pidió cambiar la del lunes a las 10 por las 12:30 del mismo día. El bot
+// decía que sí... y le cambiaba la del martes, o no cambiaba nada.
+
+test('"al mismo día a las 12:30" cambia SU día, no el que se le había ofrecido', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno, { clave: LUNES, hora: 10 });
+  const decir = charla(entorno);
+  const ofrece = await decir('tenía cita el lunes a las 10');
+  assert.match(ofrece.texto, /te puedo dar/);          // le ofrece otro día
+  const hecho = await decir('quiero cambiarla al mismo día a las 12:30');
+  assert.match(hecho.texto, /Cambiada/);
+  const despues = citas.porId(entorno.db, cita.id);
+  assert.equal(despues.inicio, instante(LUNES, 12, 30), 'tiene que quedarse el lunes');
+  assert.equal(citas.deCliente(entorno.db, despues.cliente_id).length, 1);
+});
+
+test('si nombra otro día, se respeta ese y no el de la lista', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno, { clave: LUNES, hora: 10 });
+  const decir = charla(entorno);
+  await decir('tenía cita el lunes a las 10');
+  const hecho = await decir('mejor el martes a las 12:30');
+  assert.match(hecho.texto, /Cambiada/);
+  assert.equal(citas.porId(entorno.db, cita.id).inicio, instante(MARTES, 12, 30));
+});
+
+test('un "sí" a la alternativa ofrecida la aplica tal cual', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno, { clave: LUNES, hora: 10 });
+  const decir = charla(entorno);
+  const ofrece = await decir('tenía cita el lunes a las 10');
+  const propuesta = /te puedo dar el (\w+) (\d{1,2}) de (\w+) a las (\d{2}:\d{2})/.exec(ofrece.texto);
+  assert.ok(propuesta, ofrece.texto);
+  const hecho = await decir('sí');
+  assert.match(hecho.texto, new RegExp(`Cambiada.*${propuesta[4]}`));
+  assert.notEqual(citas.porId(entorno.db, cita.id).inicio, instante(LUNES, 10));
+});
+
+test('después de cambiarla, un "sí" no vuelve a mover nada', async () => {
+  const entorno = montar();
+  const { cita } = conVisita(entorno, { clave: LUNES, hora: 10 });
+  const decir = charla(entorno);
+  await decir('tenía cita el lunes a las 10');
+  await decir('quiero cambiarla al mismo día a las 12:30');
+  const despues = await decir('sí');
+  assert.match(despues.texto, /queda así|aquí estoy/i);
+  assert.equal(citas.porId(entorno.db, cita.id).inicio, instante(LUNES, 12, 30));
+  assert.equal(citas.deCliente(entorno.db, cita.cliente_id).length, 1);
+});

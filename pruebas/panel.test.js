@@ -305,3 +305,54 @@ test('no se sale de la carpeta del panel ni con la ruta codificada', async () =>
   }
   await panel.cerrar();
 });
+
+// --- Lo que pasa en el simulador tiene que verse en la agenda --------------
+
+test('lo que el bot cambia por el simulador sale ya en la agenda', async () => {
+  const panel = await levantar();
+  const quien = clientes.buscarOCrear(panel.db, { nombre: 'Luis Cabrera', telefono: '+34600111225' });
+  const suya = citas.reservar(panel.db, panel.config, {
+    servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: panel.ahora,
+  });
+  assert.ok(suya.ok);
+
+  const antes = await (await panel.pedir(`/api/agenda?dia=${LUNES}`)).json();
+  assert.equal(antes.citas.filter((c) => c.estado === 'reservada').length, 1);
+  assert.equal(antes.citas[0].inicio, instante(LUNES, 10));
+
+  // El cliente pide el cambio y lo confirma, como en el simulador
+  const decir = (texto) => panel.pedir('/api/simulador', {
+    method: 'POST',
+    cuerpo: { texto, externo: '+34600111225', telefono: '+34600111225', cerebro: 'reglas' },
+  }).then((r) => r.json());
+  await decir('tenía cita el lunes a las 10');
+  const cambio = await decir('quiero cambiarla al mismo día a las 12:30');
+  assert.match(cambio.texto, /Cambiada/);
+
+  // Y la agenda ya lo enseña, sin tocar nada más
+  const despues = await (await panel.pedir(`/api/agenda?dia=${LUNES}`)).json();
+  const vivas = despues.citas.filter((c) => ['reservada', 'confirmada'].includes(c.estado));
+  assert.equal(vivas.length, 1, 'debería seguir habiendo una sola cita');
+  assert.equal(vivas[0].id, suya.cita.id, 'tiene que ser la misma cita, movida');
+  assert.equal(vivas[0].inicio, instante(LUNES, 12, 30));
+  assert.equal(vivas[0].cliente_nombre, 'Luis Cabrera');
+  await panel.cerrar();
+});
+
+test('una cita anulada por el simulador desaparece de las vivas', async () => {
+  const panel = await levantar();
+  const quien = clientes.buscarOCrear(panel.db, { nombre: 'Luis Cabrera', telefono: '+34600111225' });
+  citas.reservar(panel.db, panel.config, {
+    servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: panel.ahora,
+  });
+  const decir = (texto) => panel.pedir('/api/simulador', {
+    method: 'POST',
+    cuerpo: { texto, externo: '+34600111225', telefono: '+34600111225', cerebro: 'reglas' },
+  }).then((r) => r.json());
+  await decir('quiero anular mi cita');
+  await decir('sí');
+  const dia = await (await panel.pedir(`/api/agenda?dia=${LUNES}`)).json();
+  assert.equal(dia.citas.filter((c) => ['reservada', 'confirmada'].includes(c.estado)).length, 0);
+  assert.equal(dia.total, 0);
+  await panel.cerrar();
+});

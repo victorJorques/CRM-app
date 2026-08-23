@@ -79,6 +79,9 @@ $$('nav button').forEach((boton) => boton.addEventListener('click', () => {
   $$('nav button').forEach((b) => b.classList.toggle('activa', b === boton));
   $$('.vista').forEach((v) => v.classList.add('oculto'));
   $(`#vista-${boton.dataset.vista}`).classList.remove('oculto');
+  // La agenda también se recarga al volver a ella: si mientras tanto el bot ha
+  // movido una cita, lo que se ve tiene que ser lo que hay, no lo de antes.
+  if (boton.dataset.vista === 'agenda') cargarAgenda();
   if (boton.dataset.vista === 'bandeja') cargarBandeja();
   if (boton.dataset.vista === 'fichas') cargarClientes();
   if (boton.dataset.vista === 'avisos') cargarAvisos();
@@ -400,6 +403,9 @@ $('#simForm').addEventListener('submit', async (evento) => {
   }
   añadirTurno('bot', respuesta.texto ?? '(el bot no contesta: lo lleva una persona)');
   elegirSimCliente();
+  // El bot acaba de poder reservar, mover o anular: la agenda y los contadores
+  // se ponen al día sin esperar a nada.
+  cargarAgenda();
   cargarEstado();
 });
 
@@ -440,7 +446,12 @@ async function arrancar() {
   $('#entrada').classList.add('oculto');
   $('#app').classList.remove('oculto');
   await cargarAgenda();
-  setInterval(() => { cargarEstado().catch(() => {}); }, 30000);
+  setInterval(() => {
+    cargarEstado().catch(() => {});
+    // Si estás mirando la agenda, que sea la de verdad: alguien puede estar
+    // cogiendo cita por WhatsApp ahora mismo.
+    if (!$('#vista-agenda').classList.contains('oculto')) cargarAgenda().catch(() => {});
+  }, 30000);
 }
 
 arrancar();

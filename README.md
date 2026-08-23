@@ -145,7 +145,7 @@ panel/             la interfaz
 plantillas/        seis tipos de negocio listos
 exportar.js        saca los datos a CSV y copia la base
 demo-web/          empaqueta todo en una página web que funciona sin servidor
-pruebas/           331 pruebas
+pruebas/           337 pruebas
 ```
 
 Más detalle en [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
@@ -186,7 +186,7 @@ solo para construir la demostración, y por eso no están en `package.json`.
 ## Pruebas
 
 ```
-npm test     # 331 pruebas, sin red y sin tocar tu base
+npm test     # 337 pruebas, sin red y sin tocar tu base
 ```
 
 Cubren el motor de huecos (incluido el fin de semana del cambio de hora), que

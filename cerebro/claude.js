@@ -55,6 +55,8 @@ function instrucciones(config, { ahora, cliente }) {
     `- Recuérdale la que tiene ahora antes de ofrecerle otras.`,
     `- Si pide "otro día", no le ofrezcas el mismo día que ya tiene, y desde luego no su misma hora.`,
     `- Cambia siempre con mover_cita. Anular y volver a reservar le hace perder el sitio.`,
+    `- Respeta el día que te diga. "El mismo día a las 12:30" es el día que ya tiene, no el que tú le habías propuesto: comprueba esa hora en ese día antes de contestar.`,
+    `- No des un cambio por hecho hasta que mover_cita diga que sí. Si esa herramienta falla, la ${v.cita} sigue donde estaba y hay que decírselo.`,
   );
   if (config.mensajes.saludo) lineas.push(`- Si saludas primero, di: "${config.mensajes.saludo}".`);
   return lineas.join('\n');
