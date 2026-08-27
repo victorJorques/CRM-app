@@ -287,10 +287,27 @@ function horasAlCompleto(config, citas) {
       hora: hora(zona, inicio),
       total: lista.length,
       tope,
-      clientes: lista.map((c) => ({
-        nombre: c.cliente_nombre || c.cliente_telefono || 'Sin nombre',
-        servicio: c.servicio_nombre,
-        recurso: c.recurso_nombre,
+      // Uno por línea, y al lado lo que se va a hacer: el servicio de esa hora
+      // y, si tiene algo más ese día, también.
+      clientes: lista.map((cita) => ({
+        id: cita.id,
+        clienteId: cita.cliente_id,
+        nombre: cita.cliente_nombre || cita.cliente_telefono || 'Sin nombre',
+        telefono: cita.cliente_telefono ?? null,
+        servicio: cita.servicio_nombre,
+        recurso: cita.recurso_nombre,
+        desde: hora(zona, cita.inicio),
+        hasta: hora(zona, cita.fin_visible),
+        precioCentimos: cita.precio_centimos ?? null,
+        canal: cita.canal,
+        estado: cita.estado,
+        // Lo demás que tiene ese mismo día, para saber a qué viene en realidad.
+        masEseDia: citas
+          .filter((otra) => otra.cliente_id === cita.cliente_id
+            && otra.id !== cita.id
+            && ESTADOS_ACTIVOS.includes(otra.estado))
+          .sort((a, b) => a.inicio - b.inicio)
+          .map((otra) => ({ servicio: otra.servicio_nombre, hora: hora(zona, otra.inicio) })),
       })),
     }));
 }

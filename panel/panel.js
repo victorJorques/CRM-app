@@ -21,6 +21,11 @@ async function pedir(ruta, opciones = {}) {
 }
 
 const dinero = (centimos) => (centimos == null ? '' : `${(centimos / 100).toLocaleString('es-ES', { maximumFractionDigits: 2 })} €`);
+/** Sin precio no se dice nada; a cero se dice "gratis", que no es lo mismo. */
+const precioDicho = (centimos) => {
+  if (centimos === null || centimos === undefined) return '';
+  return centimos === 0 ? ' · gratis' : ` · ${dinero(centimos)}`;
+};
 
 // Las horas se pintan en la hora del NEGOCIO, no en la del ordenador que mira.
 // Si no, el panel dice una hora y el bot le dice otra al cliente, que es la
@@ -107,10 +112,14 @@ async function cargarAgenda() {
       ${dia.horasCompletas.map((h) => `
         <div class="cita completa">
           <div class="hora">${escapar(h.hora)}<br><small class="estado">${h.total} de ${h.tope}</small></div>
-          <div>
-            <div class="quien">${h.clientes.map((c) => escapar(c.nombre)).join(' · ')}</div>
-            <div class="que">${h.clientes.map((c) => `${escapar(c.servicio)} (${escapar(c.recurso)})`).join(' · ')}</div>
-          </div>
+          <ol class="a-esa-hora">
+            ${h.clientes.map((c) => `
+              <li>
+                <b>${escapar(c.nombre)}</b>
+                <span>${escapar(c.servicio)} · ${escapar(c.desde)}–${escapar(c.hasta)}${precioDicho(c.precioCentimos)} · ${escapar(c.recurso)}</span>
+                ${c.masEseDia.length ? `<em>ese día también: ${c.masEseDia.map((o) => `${escapar(o.servicio)} a las ${escapar(o.hora)}`).join(' · ')}</em>` : ''}
+              </li>`).join('')}
+          </ol>
           <div class="acciones"><small class="estado">completo</small></div>
         </div>`).join('')}
     </div>` : '';

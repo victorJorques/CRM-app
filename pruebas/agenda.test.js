@@ -388,4 +388,33 @@ test('el resumen del día dice qué horas están completas y quién las tiene', 
   assert.equal(dia.horasCompletas[0].hora, '12:00');
   assert.equal(dia.horasCompletas[0].total, 3);
   assert.deepEqual(dia.horasCompletas[0].clientes.map((c) => c.nombre).sort(), [...nombres].sort());
+  // Y de cada uno, lo que se va a hacer: servicio, de cuándo a cuándo, y con quién
+  const uno = dia.horasCompletas[0].clientes[0];
+  assert.equal(uno.servicio, 'Corte');
+  assert.equal(uno.desde, '12:00');
+  assert.equal(uno.hasta, '12:30');
+  assert.equal(uno.precioCentimos, 2000);
+  assert.ok(uno.recurso);
+  assert.deepEqual(uno.masEseDia, []);
+});
+
+test('si alguien tiene algo más ese día, sale al lado de su nombre', () => {
+  const config = conTresSillas();
+  const entorno = { ...montar(), config };
+  const nombres = ['Luis Cabrera', 'Nuria Salas', 'Diego Rivas'];
+  const fichas = nombres.map((nombre, i) => buscarOCrear(entorno.db, { telefono: `+3460011166${i}`, nombre }));
+  for (const ficha of fichas) {
+    citas.reservar(entorno.db, config, {
+      servicioId: 'corte', inicio: instante(LUNES, 12), clienteId: ficha.id, ahora: entorno.ahora,
+    });
+  }
+  // Luis, además, viene por la mañana
+  citas.reservar(entorno.db, config, {
+    servicioId: 'corte', inicio: instante(LUNES, 10, 30), clienteId: fichas[0].id, ahora: entorno.ahora,
+  });
+  const dia = agenda.resumenDia(entorno.db, config, LUNES);
+  const luis = dia.horasCompletas.find((h) => h.hora === '12:00').clientes.find((c) => c.nombre === 'Luis Cabrera');
+  assert.deepEqual(luis.masEseDia, [{ servicio: 'Corte', hora: '10:30' }]);
+  const nuria = dia.horasCompletas.find((h) => h.hora === '12:00').clientes.find((c) => c.nombre === 'Nuria Salas');
+  assert.deepEqual(nuria.masEseDia, []);
 });

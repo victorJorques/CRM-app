@@ -106,8 +106,25 @@ main { padding: 18px 20px 60px; max-width: 1180px; margin: 0 auto; }
 .cita .quien { font-weight: 600; }
 .cita .que { color: var(--tinta2); font-size: 13.5px; }
 .cita .acciones { display: flex; gap: 6px; flex-wrap: wrap; }
-.cita.completa { border-left-color: var(--ocre); background: var(--ocre-suave); }
-.cita.completa .quien { font-weight: 600; }
+.cita.completa { border-left-color: var(--ocre); background: var(--ocre-suave); align-items: start; }
+
+/* Los que coinciden a esa hora: uno por línea y numerados, porque lo que
+   cuenta es cuántos son de los que caben. */
+.a-esa-hora { list-style: none; counter-reset: aesahora; margin: 0; padding: 0; display: grid; gap: 7px; }
+.a-esa-hora li {
+  counter-increment: aesahora; position: relative; padding-left: 26px; line-height: 1.4;
+}
+.a-esa-hora li::before {
+  content: counter(aesahora);
+  position: absolute; left: 0; top: 1px;
+  font-size: 11px; font-weight: 700; color: var(--ocre);
+  background: var(--hoja); border: 1px solid var(--linea2); border-radius: 50%;
+  width: 18px; height: 18px; display: grid; place-items: center;
+  font-variant-numeric: tabular-nums;
+}
+.a-esa-hora b { display: block; font-size: 14.5px; }
+.a-esa-hora span { display: block; color: var(--tinta2); font-size: 13.5px; }
+.a-esa-hora em { display: block; color: var(--ocre); font-size: 12.5px; font-style: normal; }
 .recurso h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .cita.atendida { border-left-color: var(--pino); opacity: .72; }
 .cita.no_vino { border-left-color: var(--rojo); background: var(--rojo-suave); }

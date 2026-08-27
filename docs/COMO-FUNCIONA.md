@@ -115,7 +115,7 @@ que restaura el sistema. Antes de copiarla se cierra el diario
 ## Probar
 
 ```
-npm test            # 342 pruebas, sin red
+npm test            # 343 pruebas, sin red
 node demo.js        # el sistema entero en la terminal, base en memoria
 node demo.js plantillas/taller.json   # con otro tipo de negocio
 ```
