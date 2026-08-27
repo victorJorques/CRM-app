@@ -303,3 +303,89 @@ test('una cita ya puesta no desaparece porque luego pongan vacaciones', () => {
   assert.equal(dia.citas.length, 1);   // sigue ahí para que alguien la mueva
   assert.equal(dia.recursos.find((r) => r.id === 'ana').ausencia, 'vacaciones');
 });
+
+// --- Tope de citas a la misma hora ----------------------------------------
+// No se puede dar la misma hora del mismo día a más de tres clientes, aunque
+// haya sillas libres: a la vez no se atiende bien a media docena de personas.
+
+function conTresSillas(cambios = {}) {
+  return negocioDePrueba({
+    recursos: [{ nombre: 'Ana' }, { nombre: 'Luis' }, { nombre: 'Sara' }, { nombre: 'Iván' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 30, precio: 20 }],
+    reglas: { granularidadMinutos: 30, antelacionMinimaHoras: 2, maxPorHora: 3 },
+    ...cambios,
+  });
+}
+
+test('a la misma hora caben tres, y el cuarto ya no', () => {
+  const config = conTresSillas();
+  const entorno = { ...montar(), config };
+  const puestas = [];
+  for (let i = 0; i < 4; i += 1) {
+    const quien = buscarOCrear(entorno.db, { telefono: `+3460011122${i}`, nombre: `Cliente ${i}` });
+    const r = citas.reservar(entorno.db, config, {
+      servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: entorno.ahora,
+    });
+    puestas.push(r.ok ? 'ok' : r.motivo);
+  }
+  assert.deepEqual(puestas, ['ok', 'ok', 'ok', 'hora-completa']);
+  assert.equal(agenda.citasALaMismaHora(entorno.db, instante(LUNES, 10)), 3);
+});
+
+test('una hora al completo deja de ofrecerse', () => {
+  const config = conTresSillas();
+  const entorno = { ...montar(), config };
+  for (let i = 0; i < 3; i += 1) {
+    const quien = buscarOCrear(entorno.db, { telefono: `+3460011133${i}` });
+    citas.reservar(entorno.db, config, {
+      servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: entorno.ahora,
+    });
+  }
+  const horas = agenda.huecosDelDia(entorno.db, config, { servicioId: 'corte', clave: LUNES, ahora: entorno.ahora })
+    .map((h) => h.hora);
+  assert.ok(!horas.includes('10:00'), 'sigue ofreciendo una hora completa');
+  assert.ok(horas.includes('10:30'));
+});
+
+test('el tope se puede subir o bajar en la configuración', () => {
+  const config = conTresSillas({ reglas: { granularidadMinutos: 30, antelacionMinimaHoras: 2, maxPorHora: 1 } });
+  const entorno = { ...montar(), config };
+  const uno = buscarOCrear(entorno.db, { telefono: '+34600111991' });
+  const dos = buscarOCrear(entorno.db, { telefono: '+34600111992' });
+  assert.ok(citas.reservar(entorno.db, config, { servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: uno.id, ahora: entorno.ahora }).ok);
+  const segunda = citas.reservar(entorno.db, config, { servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: dos.id, ahora: entorno.ahora });
+  assert.equal(segunda.motivo, 'hora-completa');
+});
+
+test('mover una cita a su propia hora no cuenta como una cuarta', () => {
+  const config = conTresSillas();
+  const entorno = { ...montar(), config };
+  const puestas = [];
+  for (let i = 0; i < 3; i += 1) {
+    const quien = buscarOCrear(entorno.db, { telefono: `+3460011144${i}` });
+    puestas.push(citas.reservar(entorno.db, config, {
+      servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: entorno.ahora,
+    }).cita);
+  }
+  const movida = citas.mover(entorno.db, config, {
+    citaId: puestas[0].id, nuevoInicio: instante(LUNES, 10), ahora: entorno.ahora,
+  });
+  assert.ok(movida.ok, movida.motivo);
+});
+
+test('el resumen del día dice qué horas están completas y quién las tiene', () => {
+  const config = conTresSillas();
+  const entorno = { ...montar(), config };
+  const nombres = ['Luis Cabrera', 'Nuria Salas', 'Diego Rivas'];
+  for (const [i, nombre] of nombres.entries()) {
+    const quien = buscarOCrear(entorno.db, { telefono: `+3460011155${i}`, nombre });
+    citas.reservar(entorno.db, config, {
+      servicioId: 'corte', inicio: instante(LUNES, 12), clienteId: quien.id, ahora: entorno.ahora,
+    });
+  }
+  const dia = agenda.resumenDia(entorno.db, config, LUNES);
+  assert.equal(dia.horasCompletas.length, 1);
+  assert.equal(dia.horasCompletas[0].hora, '12:00');
+  assert.equal(dia.horasCompletas[0].total, 3);
+  assert.deepEqual(dia.horasCompletas[0].clientes.map((c) => c.nombre).sort(), [...nombres].sort());
+});

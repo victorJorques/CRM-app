@@ -49,6 +49,26 @@ export function citasQueSolapan(db, { recursoId, desde, hasta, excluir = null })
   );
 }
 
+/**
+ * Cuántas citas empiezan exactamente a esa hora en todo el negocio. Es un
+ * tope aparte del de cada recurso: da igual que queden sillas libres, a la
+ * misma hora no se atiende bien a media docena de personas.
+ */
+export function citasALaMismaHora(db, inicio, { excluir = null } = {}) {
+  return db.valor(
+    `SELECT COUNT(*) FROM citas
+     WHERE inicio = $inicio
+       AND estado IN ('reservada','confirmada','atendida')
+       AND ($excluir IS NULL OR id != $excluir)`,
+    { inicio, excluir },
+  ) ?? 0;
+}
+
+export function horaCompleta(db, config, inicio, { excluir = null } = {}) {
+  const tope = config.reglas.maxPorHora ?? Infinity;
+  return citasALaMismaHora(db, inicio, { excluir }) >= tope;
+}
+
 function cabeEnElRecurso(db, config, { recurso, inicio, minutos, excluir }) {
   const hasta = inicio + minutos * 60000;
   const ocupadas = citasQueSolapan(db, { recursoId: recurso.id, desde: inicio, hasta, excluir });
@@ -104,6 +124,7 @@ export function huecosDelDia(db, config, {
         const inicio = instanteDe(zona, clave, m);
         if (inicio === null) continue;          // esa hora no existe (cambio de hora)
         if (inicio < noAntesDe) continue;
+        if (horaCompleta(db, config, inicio)) continue;   // ya hay el máximo a esa hora
         if (!cabeEnElRecurso(db, config, { recurso, inicio, minutos, excluir: null })) continue;
         if (!porMinuto.has(m)) porMinuto.set(m, { inicio, recursos: [] });
         porMinuto.get(m).recursos.push(recurso);
@@ -200,6 +221,15 @@ export function comprobarHora(db, config, {
     if (candidatos.length === 0) return { libre: false, motivo: 'recurso-no-hace-servicio', alternativas: alternativas() };
   }
 
+  if (horaCompleta(db, config, inicio, { excluir })) {
+    return {
+      libre: false,
+      motivo: 'hora-completa',
+      detalle: String(config.reglas.maxPorHora),
+      alternativas: alternativas(),
+    };
+  }
+
   const minutos = minutosQueOcupa(config, servicio);
   const dentroDeHorario = [];
   for (const recurso of candidatos) {
@@ -236,6 +266,33 @@ export function comprobarHora(db, config, {
     },
     alternativas: [],
   };
+}
+
+/** Las horas del día que ya tienen el máximo de citas, con quién las tiene. */
+function horasAlCompleto(config, citas) {
+  const tope = config.reglas.maxPorHora ?? Infinity;
+  if (!Number.isFinite(tope)) return [];
+  const zona = config.negocio.zonaHoraria;
+  const porHora = new Map();
+  for (const cita of citas) {
+    if (!ESTADOS_ACTIVOS.includes(cita.estado)) continue;
+    if (!porHora.has(cita.inicio)) porHora.set(cita.inicio, []);
+    porHora.get(cita.inicio).push(cita);
+  }
+  return [...porHora.entries()]
+    .filter(([, lista]) => lista.length >= tope)
+    .sort((a, b) => a[0] - b[0])
+    .map(([inicio, lista]) => ({
+      inicio,
+      hora: hora(zona, inicio),
+      total: lista.length,
+      tope,
+      clientes: lista.map((c) => ({
+        nombre: c.cliente_nombre || c.cliente_telefono || 'Sin nombre',
+        servicio: c.servicio_nombre,
+        recurso: c.recurso_nombre,
+      })),
+    }));
 }
 
 /**
@@ -301,6 +358,7 @@ export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
       ausencia: ausencia(recurso, clave)?.motivo ?? null,
       citas: citas.filter((c) => c.recurso_id === recurso.id),
     })),
+    horasCompletas: horasAlCompleto(config, citas),
     total: activas.length,
     ingresosCentimos: citas
       .filter((c) => c.estado === 'atendida')

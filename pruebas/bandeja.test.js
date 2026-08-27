@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as bandeja from '../nucleo/bandeja.js';
 import { buscarOCrear } from '../nucleo/clientes.js';
-import { montar } from './ayuda.js';
+import { montar, avanzarReloj } from './ayuda.js';
 
 test('abrir una conversación dos veces devuelve la misma', () => {
   const { db } = montar();
@@ -75,7 +75,7 @@ test('la bandeja ordena por lo último que llegó', async () => {
   const uno = bandeja.abrir(db, { canal: 'whatsapp', externo: 'uno' });
   const dos = bandeja.abrir(db, { canal: 'whatsapp', externo: 'dos' });
   bandeja.entrante(db, uno.id, 'primero');
-  await new Promise((r) => setTimeout(r, 5));
+  avanzarReloj(1000);
   bandeja.entrante(db, dos.id, 'después');
   assert.equal(bandeja.listar(db)[0].externo, 'dos');
 });

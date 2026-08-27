@@ -26,7 +26,7 @@ dentro de Node.
 | **Agenda** | Por día y por persona (o silla, box, mesa, elevador…). Crear, mover, anular, marcar quién vino y quién no. |
 | **Fichas de cliente** | Se crean solas con el primer mensaje. Historial, gasto acumulado, ausencias y notas internas. |
 | **Bandeja única** | WhatsApp, correo, llamadas y panel en la misma lista. Si entras tú a contestar, el bot se aparta. |
-| **Motor de huecos** | Horarios partidos, festivos, cierres del negocio, vacaciones o bajas de una sola persona, duración y margen por servicio, varios recursos, y el fin de semana en que cambia la hora. |
+| **Motor de huecos** | Horarios partidos, festivos, cierres del negocio, vacaciones o bajas de una sola persona, duración y margen por servicio, varios recursos, tope de citas a la misma hora, y el fin de semana en que cambia la hora. |
 | **Recordatorios** | Aviso la víspera, repesca de quien no vino y lista de quien lleva meses sin aparecer. |
 | **Simulador** | Escríbele como si fueras un cliente. Lo que pasa ahí es real y queda guardado. |
 | **Cerrado por fuera** | Panel con clave, sesión firmada y freno a la fuerza bruta; webhooks con firma comprobada; y por correo no se toca una cita si el remitente no cuadra. |
@@ -74,6 +74,7 @@ Todo lo que distingue un negocio de otro vive en `conserje.config.json`:
   "horario":  { "lunes": [["09:00","14:00"], ["16:00","20:00"]], "domingo": [] },
   "festivos": ["2026-12-25"],
   "cierres":  [{ "desde": "2026-08-01", "hasta": "2026-08-15", "motivo": "vacaciones" }],   // cierra el negocio
+  "reglas": { "maxPorHora": 3 },                            // tres clientes a la vez, no más
   "servicios": [
     { "nombre": "Mechas", "duracionMinutos": 120, "precio": 85, "recursos": ["ana"] }
   ],
@@ -93,6 +94,11 @@ Ana», una clínica dice «tu visita con la Dra. Gómez» y un taller dice «tu 
 en el elevador 2». Los **recursos** son personas o cosas, lo que haga falta
 reservar; cada uno puede tener su propio horario, sus vacaciones (`ausencias`) y
 atender a más de uno a la vez (`capacidad`).
+
+Por encima de todo eso manda **`reglas.maxPorHora`**: cuántas citas admites a
+la misma hora en todo el negocio, tengas las sillas que tengas. Por defecto,
+tres. Cuando una hora llega al tope, el bot deja de ofrecerla y la agenda la
+marca con los nombres de quienes la tienen.
 
 ## Lo que te toca a ti
 
@@ -145,7 +151,7 @@ panel/             la interfaz
 plantillas/        seis tipos de negocio listos
 exportar.js        saca los datos a CSV y copia la base
 demo-web/          empaqueta todo en una página web que funciona sin servidor
-pruebas/           337 pruebas
+pruebas/           342 pruebas
 ```
 
 Más detalle en [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
@@ -186,7 +192,7 @@ solo para construir la demostración, y por eso no están en `package.json`.
 ## Pruebas
 
 ```
-npm test     # 337 pruebas, sin red y sin tocar tu base
+npm test     # 342 pruebas, sin red y sin tocar tu base
 ```
 
 Cubren el motor de huecos (incluido el fin de semana del cambio de hora), que

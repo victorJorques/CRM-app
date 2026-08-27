@@ -115,7 +115,7 @@ export function actualizar(db, id, cambios) {
 }
 
 /** Ficha completa: quien es, que ha gastado, cuantas veces no vino y su historial. */
-export function ficha(db, id, { limiteCitas = 50 } = {}) {
+export function ficha(db, id, { limiteCitas = 50, ahora = Date.now() } = {}) {
   const cliente = porId(db, id);
   if (!cliente) return null;
   const citas = db.filas(
@@ -136,7 +136,7 @@ export function ficha(db, id, { limiteCitas = 50 } = {}) {
   const proxima = db.fila(
     `SELECT * FROM citas WHERE cliente_id = $id AND estado IN ('reservada','confirmada') AND inicio >= $ahora
      ORDER BY inicio LIMIT 1`,
-    { id, ahora: Date.now() },
+    { id, ahora },
   );
   return {
     ...cliente,

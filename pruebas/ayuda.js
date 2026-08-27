@@ -1,4 +1,5 @@
 // Andamios para las pruebas: una base en memoria y un negocio de mentira.
+import { mock } from 'node:test';
 import { readFileSync } from 'node:fs';
 import { abrirBase } from '../datos/db.js';
 import { revisarConfig } from '../nucleo/config.js';
@@ -12,6 +13,16 @@ export const AHORA = aUtc(ZONA, { anio: 2026, mes: 8, dia: 21, hora: 9, minuto: 
 export const LUNES = '2026-08-24';
 export const MARTES = '2026-08-25';
 export const DOMINGO = '2026-08-23';
+
+// El reloj se congela en AHORA para todas las pruebas. Sin esto, las que
+// hablan del lunes 24 de agosto empiezan a fallar solas cuando llega el 25:
+// no porque el programa se rompa, sino porque pasa el tiempo.
+mock.timers.enable({ apis: ['Date'], now: new Date(AHORA) });
+
+/** Adelanta el reloj congelado, para lo que necesite ver pasar el tiempo. */
+export function avanzarReloj(ms) {
+  mock.timers.setTime(Date.now() + ms);
+}
 
 export function instante(clave, hora, minuto = 0) {
   const [anio, mes, dia] = clave.split('-').map(Number);

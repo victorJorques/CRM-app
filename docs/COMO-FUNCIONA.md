@@ -63,6 +63,11 @@ Ambos usan las mismas nueve herramientas de `cerebro/herramientas.js`
   una sola vez y se reparte hacia quien menos carga tiene ese día. El resto
   queda en `alternativas`.
 - `capacidad` en un recurso permite atender a varios a la vez (mesas, salas).
+- `reglas.maxPorHora` es un tope del negocio entero, por encima de la capacidad
+  de cada recurso: cuenta las citas que empiezan a la MISMA hora. Se comprueba
+  en `huecosDelDia` (para no ofrecerla) y otra vez en `comprobarHora` dentro de
+  la transacción de reservar (para no dar una cuarta aunque dos personas
+  pregunten a la vez). Mover una cita a su propia hora no cuenta como una más.
 - Hay dos formas de cerrar: `cierres` para el negocio entero y `ausencias`
   dentro de cada recurso para las vacaciones o la baja de uno solo. Las citas
   ya puestas **no** se borran al declarar unas vacaciones: siguen en la agenda
@@ -110,7 +115,7 @@ que restaura el sistema. Antes de copiarla se cierra el diario
 ## Probar
 
 ```
-npm test            # 337 pruebas, sin red
+npm test            # 342 pruebas, sin red
 node demo.js        # el sistema entero en la terminal, base en memoria
 node demo.js plantillas/taller.json   # con otro tipo de negocio
 ```

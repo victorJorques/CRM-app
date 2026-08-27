@@ -98,7 +98,7 @@ export function reservar(db, config, {
     );
     db.apuntar('cita.reservada', id, { clienteId: ficha.id, servicioId: servicio.id, inicio, canal });
     const cita = porId(db, id);
-    programarDeCita(db, config, cita);
+    programarDeCita(db, config, cita, { ahora });
     return { ok: true, cita };
   });
 }
@@ -137,7 +137,7 @@ export function mover(db, config, { citaId, nuevoInicio, recursoId = null, ahora
     db.apuntar('cita.movida', citaId, { de: cita.inicio, a: nuevoInicio });
     const actualizada = porId(db, citaId);
     cancelarDeCita(db, citaId);
-    programarDeCita(db, config, actualizada);
+    programarDeCita(db, config, actualizada, { ahora });
     return { ok: true, cita: actualizada, anterior: cita };
   });
 }
@@ -163,7 +163,7 @@ export function anular(db, config, { citaId, motivo = '', porQuien = 'panel', ah
 }
 
 /** Cierra el circulo: vino, no vino, o confirmada tras el recordatorio. */
-export function marcar(db, config, { citaId, estado, precio = undefined }) {
+export function marcar(db, config, { citaId, estado, precio = undefined, ahora = Date.now() }) {
   if (!ESTADOS.includes(estado)) return { ok: false, motivo: 'estado-desconocido' };
   const cita = porId(db, citaId);
   if (!cita) return { ok: false, motivo: 'cita-desconocida' };
@@ -176,7 +176,7 @@ export function marcar(db, config, { citaId, estado, precio = undefined }) {
   db.ejecutar(`${sql} WHERE id = $citaId`, params);
   if (estado === 'anulada' || estado === 'no_vino') cancelarDeCita(db, citaId);
   const actualizada = porId(db, citaId);
-  if (estado === 'no_vino') programarNoVino(db, config, actualizada);
+  if (estado === 'no_vino') programarNoVino(db, config, actualizada, { ahora });
   db.apuntar(`cita.${estado}`, citaId, {});
   return { ok: true, cita: actualizada };
 }

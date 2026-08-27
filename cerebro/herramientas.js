@@ -433,6 +433,7 @@ function explicarMotivo(config, resultado, servicio, ahora) {
   const cola = oferta ? ` ${oferta}` : '';
   switch (resultado.motivo) {
     case 'ocupado': return `Esa hora está cogida.${cola}`;
+    case 'hora-completa': return `A esa hora ya tengo ${resultado.detalle ?? 'todas las'} citas, que es el máximo que cogemos a la vez.${cola}`;
     case 'cerrado': return `Ese día está cerrado (${resultado.detalle ?? 'festivo'}).${cola}`;
     case 'fuera-de-horario': return `A esa hora no abrimos.${cola}`;
     case 'demasiado-justo': return `Es demasiado justo: hace falta avisar con ${config.reglas.antelacionMinimaHoras} h.${cola}`;

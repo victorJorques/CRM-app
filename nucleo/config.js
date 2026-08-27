@@ -22,6 +22,10 @@ const REGLAS_BASE = {
   cancelacionMinimaHoras: 24,
   huecosQueOfrece: 4,
   permiteElegirRecurso: true,
+  // Tope de citas que empiezan a la misma hora en TODO el negocio, por encima
+  // de lo que permita cada recurso por su cuenta. Aunque haya cinco sillas, a
+  // las 12:00 no puedes atender bien a cinco personas a la vez.
+  maxPorHora: 3,
 };
 
 const RECORDATORIOS_BASE = {
@@ -262,6 +266,9 @@ export function revisarConfig(bruta) {
   }
   if (reglas.antelacionMaximaDias < 1) {
     errores.push('reglas → antelacionMaximaDias: con menos de un día no se puede pedir cita.');
+  }
+  if (!Number.isInteger(reglas.maxPorHora) || reglas.maxPorHora < 1) {
+    errores.push('reglas → maxPorHora: cuántas citas admites a la misma hora en todo el negocio (1, 2, 3...).');
   }
 
   const config = {

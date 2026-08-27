@@ -106,6 +106,9 @@ main { padding: 18px 20px 60px; max-width: 1180px; margin: 0 auto; }
 .cita .quien { font-weight: 600; }
 .cita .que { color: var(--tinta2); font-size: 13.5px; }
 .cita .acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+.cita.completa { border-left-color: var(--ocre); background: var(--ocre-suave); }
+.cita.completa .quien { font-weight: 600; }
+.recurso h3 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
 .cita.atendida { border-left-color: var(--pino); opacity: .72; }
 .cita.no_vino { border-left-color: var(--rojo); background: var(--rojo-suave); }
 .cita.anulada { border-left-color: var(--linea2); opacity: .5; text-decoration: line-through; }

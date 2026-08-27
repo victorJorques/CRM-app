@@ -99,6 +99,22 @@ async function cargarAgenda() {
     <div class="cifra"><b>${dinero(dia.ingresosCentimos) || '—'}</b><span>cerrado</span></div>
     <div class="cifra"><b>${dia.abierto ? 'Abierto' : 'Cerrado'}</b><span>${dia.motivoCierre ?? fechaDe(Date.parse(`${diaActual}T12:00:00Z`))}</span></div>`;
 
+  // Las horas que ya están al completo, con quién las tiene: es lo primero que
+  // hay que ver de un día, y lo que explica que el bot deje de ofrecerlas.
+  $('#completas').innerHTML = (dia.horasCompletas ?? []).length ? `
+    <div class="recurso">
+      <h3>Horas al completo <small>no se ofrecen más citas a estas horas</small></h3>
+      ${dia.horasCompletas.map((h) => `
+        <div class="cita completa">
+          <div class="hora">${escapar(h.hora)}<br><small class="estado">${h.total} de ${h.tope}</small></div>
+          <div>
+            <div class="quien">${h.clientes.map((c) => escapar(c.nombre)).join(' · ')}</div>
+            <div class="que">${h.clientes.map((c) => `${escapar(c.servicio)} (${escapar(c.recurso)})`).join(' · ')}</div>
+          </div>
+          <div class="acciones"><small class="estado">completo</small></div>
+        </div>`).join('')}
+    </div>` : '';
+
   $('#agenda').innerHTML = dia.recursos.map((recurso) => {
     const tramos = recurso.tramos.map((t) => t.join('–')).join(' · ')
       || (recurso.ausencia ? escapar(recurso.ausencia) : 'no trabaja');

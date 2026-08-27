@@ -25,7 +25,8 @@
     "granularidadMinutos": 15,
     "antelacionMinimaHoras": 12,
     "cancelacionMinimaHoras": 48,
-    "margenEntreCitasMinutos": 5
+    "margenEntreCitasMinutos": 5,
+    "maxPorHora": 3
   },
   "servicios": [
     { "nombre": "Primera visita", "duracionMinutos": 30, "precio": 0, "alias": ["revisión", "revision", "chequeo"] },
@@ -36,7 +37,8 @@
   ],
   "recursos": [
     { "nombre": "Dra. Gómez" },
-    { "nombre": "Dr. Ruiz" }
+    { "nombre": "Dr. Ruiz" },
+    { "nombre": "Dra. Serra" }
   ],
   "recordatorios": { "vispera": true, "visperaHora": "17:00", "seguimientoInactivosDias": 180 }
 }

@@ -18,7 +18,7 @@ import * as clientes from '../nucleo/clientes.js';
 import * as citas from '../nucleo/citas.js';
 import * as bandeja from '../nucleo/bandeja.js';
 import { buscarHuecos } from '../nucleo/agenda.js';
-import { claveDia, sumarDias } from '../nucleo/tiempo.js';
+import { claveDia, sumarDias, diaSemana, instanteDe } from '../nucleo/tiempo.js';
 import { NEGOCIOS } from './negocios.js';
 
 const NOMBRES = [
@@ -41,6 +41,34 @@ function aQuienLeToca(fichas, cuenta, tope = 2) {
   return libres.reduce((menos, f) => (
     (cuenta.get(f.id) ?? 0) < (cuenta.get(menos.id) ?? 0) ? f : menos
   ), libres[0]);
+}
+
+/**
+ * Una escena a propósito: tres personas con cita a la misma hora el lunes que
+ * viene a mediodía. Sirve para ver dos cosas de un vistazo: que la agenda
+ * enseña los tres nombres juntos, y que a la cuarta persona ya no se le da esa
+ * hora, porque el tope son tres.
+ */
+function tresALaMismaHora(db, config, fichas, ahora) {
+  const zona = config.negocio.zonaHoraria;
+  const tope = config.reglas.maxPorHora ?? 3;
+  let clave = claveDia(zona, ahora);
+  for (let i = 1; i <= 14; i += 1) {          // el próximo lunes
+    clave = sumarDias(claveDia(zona, ahora), i);
+    if (diaSemana(zona, clave) === 'lunes') break;
+  }
+  const servicio = config.servicios.find((s) => s.activo) ?? config.servicios[0];
+  const puestas = [];
+  for (const ficha of fichas) {
+    if (puestas.length >= tope) break;
+    const inicio = instanteDe(zona, clave, 12 * 60);
+    if (inicio === null) break;
+    const r = citas.reservar(db, config, {
+      servicioId: servicio.id, inicio, clienteId: ficha.id, canal: 'whatsapp', ahora,
+    });
+    if (r.ok) puestas.push(ficha.nombre);
+  }
+  return { clave, puestas };
 }
 
 function sembrar(db, config) {
@@ -89,6 +117,10 @@ function sembrar(db, config) {
       }
     }
   }
+
+  // Luis Cabrera y dos más, a la misma hora: es la escena que enseña el tope.
+  const luis = fichas.find((f) => f.nombre.startsWith('Luis')) ?? fichas[3];
+  tresALaMismaHora(db, config, [luis, fichas[4], fichas[7]], ahora);
 
   const uno = bandeja.abrir(db, { canal: 'whatsapp', externo: fichas[0].telefono, clienteId: fichas[0].id });
   bandeja.entrante(db, uno.id, '¿tenéis hueco esta semana?');
