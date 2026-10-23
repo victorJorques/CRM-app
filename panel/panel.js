@@ -1,11 +1,21 @@
 // El panel por dentro. Sin librerias: pedir datos, pintar, volver a pedir.
 
+import {
+  minutosDeHora, duracionDicha, rangoDelDia, enCarriles, fueraDeHorario, lineasDeHoras, alturaDe,
+} from './calendario.js';
+
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 let estado = null;
 let diaActual = null;   // se fija con la zona horaria del negocio al arrancar
 let conversacionAbierta = null;
 let clienteAbierto = null;
+let diaCargado = null;  // lo ultimo que contesto la agenda, para el detalle
+let citaElegida = null; // la cita abierta en el calendario
+// El calendario es lo primero que se ve; quien prefiera la lista, se le
+// recuerda. Si el navegador no deja guardar nada, tampoco pasa nada.
+let modoAgenda = 'calendario';
+try { modoAgenda = localStorage.getItem('conserje.modoAgenda') || 'calendario'; } catch { /* sin memoria */ }
 
 const escapar = (texto) => String(texto ?? '').replace(/[&<>"']/g, (c) => (
   { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -105,6 +115,7 @@ $$('nav button').forEach((boton) => boton.addEventListener('click', () => {
 async function cargarAgenda() {
   $('#dia').value = diaActual;
   const dia = await pedir(`/api/agenda?dia=${diaActual}`);
+  diaCargado = dia;
   $('#cifrasDia').innerHTML = `
     <div class="cifra"><b>${dia.total}</b><span>${dia.total === 1 ? 'cita' : 'citas'}</span></div>
     <div class="cifra"><b>${dinero(dia.previstoCentimos) || '—'}</b><span>previsto</span></div>
@@ -131,21 +142,145 @@ async function cargarAgenda() {
         </div>`).join('')}
     </div>` : '';
 
-  $('#agenda').innerHTML = dia.recursos.map((recurso) => {
+  $('#modoCalendario').classList.toggle('activa', modoAgenda === 'calendario');
+  $('#modoLista').classList.toggle('activa', modoAgenda !== 'calendario');
+  $('#agenda').innerHTML = modoAgenda === 'calendario' ? pintarCalendario(dia) : pintarLista(dia);
+
+  $$('#agenda [data-accion]').forEach((boton) => boton.addEventListener('click', accionDeCita));
+  $$('#agenda .bloque[data-cita]').forEach((bloque) => bloque.addEventListener('click', () => abrirDetalle(bloque.dataset.cita)));
+  pintarDetalle();
+}
+
+/** La agenda en lista: una cita debajo de otra, con sus botones a mano. */
+function pintarLista(dia) {
+  return dia.recursos.map((recurso) => {
     const tramos = recurso.tramos.map((t) => t.join('–')).join(' · ')
       || (recurso.ausencia ? escapar(recurso.ausencia) : 'no trabaja');
     const citas = recurso.citas.length
       ? recurso.citas.map(pintarCita).join('')
       : '<p class="vacio">Sin citas.</p>';
-    // Los huecos libres, que es lo que se mira cuando alguien pregunta si
-    // queda algo esta tarde.
-    const libres = (recurso.libres ?? []).length
-      ? `<p class="libres"><b>${dia.momento === 'hoy' ? 'Queda libre' : 'Libre'}:</b> ${recurso.libres.map((h) => `${escapar(h.desde)}–${escapar(h.hasta)} <small>(${h.minutos} min)</small>`).join(' · ')}</p>`
-      : (recurso.tramos.length ? `<p class="libres llena">${sinHuecos(dia.momento)}</p>` : '');
-    return `<div class="recurso"><h3>${escapar(recurso.nombre)} <small>${escapar(tramos)}</small></h3>${citas}${libres}</div>`;
+    return `<div class="recurso"><h3>${escapar(recurso.nombre)} <small>${escapar(tramos)}</small></h3>${citas}${lineaDeLibres(dia, recurso)}</div>`;
   }).join('') || '<p class="vacio">Nadie trabaja este día.</p>';
+}
 
-  $$('#agenda [data-accion]').forEach((boton) => boton.addEventListener('click', accionDeCita));
+/** Los huecos libres dichos con palabras, que se leen de un vistazo. */
+function lineaDeLibres(dia, recurso) {
+  if ((recurso.libres ?? []).length) {
+    const huecos = recurso.libres
+      .map((h) => `${escapar(h.desde)}–${escapar(h.hasta)} <small>(${escapar(duracionDicha(h.minutos))})</small>`)
+      .join(' · ');
+    return `<p class="libres"><b>${dia.momento === 'hoy' ? 'Queda libre' : 'Libre'}:</b> ${huecos}</p>`;
+  }
+  return recurso.tramos.length ? `<p class="libres llena">${sinHuecos(dia.momento)}</p>` : '';
+}
+
+/**
+ * La agenda como un calendario del día: las horas a la izquierda, una columna
+ * por persona, y cada cita en su sitio y de su alto. Los huecos se ven porque
+ * están vacíos, que es justo lo que se mira cuando suena el teléfono.
+ */
+function pintarCalendario(dia) {
+  const columnas = dia.recursos.map((recurso) => ({
+    recurso,
+    tramos: recurso.tramos.map(([abre, cierra]) => [minutosDeHora(abre), minutosDeHora(cierra)]),
+    bloques: recurso.citas.map((cita) => {
+      const desde = minutosDeHora(horaDe(cita.inicio));
+      let hasta = minutosDeHora(horaDe(cita.fin_visible));
+      if (hasta <= desde) hasta = 24 * 60;        // la que acaba a medianoche
+      return { cita, desde, hasta: Math.max(hasta, desde + 10) };
+    }),
+  }));
+  const rango = rangoDelDia(columnas);
+  if (!rango) {
+    return `<p class="vacio">${escapar(dia.abierto ? 'Nadie trabaja este día.' : (dia.motivoCierre ?? 'Cerrado.'))}</p>`;
+  }
+  const ahora = dia.momento === 'hoy' ? minutosDeHora(horaDe(dia.ahora)) : null;
+  const horas = lineasDeHoras(rango)
+    .map((linea) => `<span style="top:${linea.arriba}%">${escapar(linea.etiqueta)}</span>`).join('');
+
+  const banda = (clase, desde, hasta, dentro = '') => {
+    const { arriba, alto } = alturaDe(desde, hasta, rango);
+    return alto > 0 ? `<div class="${clase}" style="top:${arriba}%;height:${alto}%">${dentro}</div>` : '';
+  };
+
+  const columnasHtml = columnas.map(({ recurso, tramos, bloques }, indice) => {
+    const titulo = recurso.tramos.map((t) => t.join('–')).join(' · ')
+      || (recurso.ausencia ? recurso.ausencia : 'no trabaja');
+    const fuera = fueraDeHorario(tramos, rango).map(([abre, cierra]) => banda('fuera', abre, cierra)).join('');
+    const pasado = dia.momento === 'pasado'
+      ? banda('pasado', rango.desde, rango.hasta)
+      : (ahora === null ? '' : banda('pasado', rango.desde, ahora));
+    // Los huecos de verdad, pintados enteros. El rótulo solo donde cabe: en
+    // un rato de diez minutos la letra tapa el hueco en vez de enseñarlo.
+    const huecos = (recurso.libres ?? [])
+      .map((hueco) => banda('hueco', minutosDeHora(hueco.desde), minutosDeHora(hueco.hasta),
+        hueco.minutos >= 25 ? `<span>libre · ${escapar(duracionDicha(hueco.minutos))}</span>` : ''))
+      .join('');
+    const citas = enCarriles(bloques).map((puesto) => {
+      const { arriba, alto } = alturaDe(puesto.desde, puesto.hasta, rango);
+      const ancho = 100 / puesto.carriles;
+      const cita = puesto.cita;
+      const quien = cita.cliente_nombre || cita.cliente_telefono || 'Sin nombre';
+      const que = `${cita.servicio_nombre}${cita.precio_centimos ? ` · ${dinero(cita.precio_centimos)}` : ''}`;
+      const corto = puesto.hasta - puesto.desde < 35;
+      return `<button type="button" class="bloque ${escapar(cita.estado)}${corto ? ' corto' : ''}${String(cita.id) === citaElegida ? ' elegida' : ''}"
+        style="top:${arriba}%;height:${alto}%;left:${puesto.carril * ancho}%;width:${ancho}%"
+        data-cita="${escapar(cita.id)}"
+        title="${escapar(`${horaDe(cita.inicio)}–${horaDe(cita.fin_visible)} · ${quien} · ${que}`)}">
+        <b>${escapar(horaDe(cita.inicio))}</b> <span class="quien">${escapar(quien)}</span>
+        <span class="que">${escapar(que)}</span>
+      </button>`;
+    }).join('');
+    const ahoraHtml = ahora !== null && ahora >= rango.desde && ahora <= rango.hasta
+      ? `<div class="ahora" style="top:${alturaDe(ahora, ahora, rango).arriba}%"></div>` : '';
+    return `<div class="columna">
+      <h4>${escapar(recurso.nombre)} <small>${escapar(titulo)}</small></h4>
+      <div class="caja">
+        ${indice === 0 ? `<div class="horas">${horas}</div>` : ''}
+        <div class="lienzo">${fuera}${pasado}${huecos}${citas}${ahoraHtml}</div>
+      </div>
+      ${lineaDeLibres(dia, recurso)}
+    </div>`;
+  }).join('');
+
+  const alto = Math.max(420, Math.round((rango.hasta - rango.desde) * 1.15));
+  const paso = alto / ((rango.hasta - rango.desde) / 60);   // lo que mide una hora
+  return `<div class="calendario" style="--alto:${alto}px;--paso:${paso}px">
+    <div class="columnas">${columnasHtml}</div>
+  </div>`;
+}
+
+/** Al tocar una cita del calendario se abre debajo, con sus botones. */
+function abrirDetalle(id) {
+  citaElegida = citaElegida === String(id) ? null : String(id);
+  $$('#agenda .bloque').forEach((bloque) => bloque.classList.toggle('elegida', bloque.dataset.cita === citaElegida));
+  pintarDetalle();
+}
+
+function pintarDetalle() {
+  const caja = $('#detalleCita');
+  if (!caja) return;
+  const cita = (diaCargado?.citas ?? []).find((c) => String(c.id) === citaElegida);
+  if (!cita) {
+    caja.innerHTML = '';
+    caja.classList.add('oculto');
+    citaElegida = null;
+    return;
+  }
+  caja.classList.remove('oculto');
+  caja.innerHTML = `${pintarCita(cita)}<button type="button" class="cerrar" data-cerrar title="Cerrar">×</button>`;
+  caja.querySelectorAll('[data-accion]').forEach((boton) => boton.addEventListener('click', accionDeCita));
+  caja.querySelector('[data-cerrar]').addEventListener('click', () => {
+    citaElegida = null;
+    $$('#agenda .bloque').forEach((bloque) => bloque.classList.remove('elegida'));
+    pintarDetalle();
+  });
+}
+
+function cambiarModo(modo) {
+  modoAgenda = modo;
+  try { localStorage.setItem('conserje.modoAgenda', modo); } catch { /* sin memoria */ }
+  cargarAgenda();
 }
 
 function pintarCita(cita) {
@@ -176,6 +311,8 @@ async function accionDeCita(evento) {
   cargarEstado();
 }
 
+$('#modoCalendario').addEventListener('click', () => cambiarModo('calendario'));
+$('#modoLista').addEventListener('click', () => cambiarModo('lista'));
 $('#dia').addEventListener('change', (e) => { diaActual = e.target.value; cargarAgenda(); });
 $('#diaAnterior').addEventListener('click', () => moverDia(-1));
 $('#diaSiguiente').addEventListener('click', () => moverDia(1));

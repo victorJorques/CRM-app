@@ -73,7 +73,7 @@ const estilosDemo = `
 .demo-barra {
   display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
   padding: 9px 20px; background: var(--ocre-suave); border-bottom: 1px solid var(--linea2);
-  font-size: 13.5px; margin: 0 -20px 0;
+  font-size: 13.5px;
 }
 .demo-aviso { color: var(--ocre); font-weight: 600; }
 .demo-elige { display: flex; align-items: center; gap: 6px; color: var(--tinta2); }

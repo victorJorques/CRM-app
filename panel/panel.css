@@ -170,3 +170,77 @@ main { padding: 18px 20px 60px; max-width: 1180px; margin: 0 auto; }
 #simFicha:empty { display: none; }
 .escribir { display: flex; gap: 8px; }
 .escribir input { flex: 1; }
+
+/* --- El calendario del día -------------------------------------------------
+   Las horas a la izquierda, una columna por persona y cada cita en su sitio.
+   Los huecos no hay que contarlos: se ven porque están vacíos.            */
+.modos { display: flex; gap: 6px; margin-bottom: 14px; }
+.modos button { padding: 5px 12px; font-size: 13.5px; }
+.modos button.activa { background: var(--pino); color: var(--hoja); border-color: var(--pino); }
+
+.calendario { padding-left: 50px; }
+/* Las horas cuelgan de la misma caja que el lienzo: asi caen justo a la
+   altura de su raya, sin depender de lo que midan los titulos de encima. */
+.calendario .caja { position: relative; height: var(--alto); }
+.calendario .horas { position: absolute; top: 0; bottom: 0; left: -50px; width: 44px; }
+.calendario .horas span {
+  position: absolute; right: 0; transform: translateY(-50%);
+  font-size: 11.5px; color: var(--tinta3); font-variant-numeric: tabular-nums;
+}
+.calendario .columnas { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 10px; }
+.calendario .columna h4 {
+  margin: 0 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--tinta3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.calendario .columna h4 small { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.calendario .lienzo {
+  position: absolute; inset: 0; background: var(--hoja);
+  border: 1px solid var(--linea); border-radius: 8px; overflow: hidden;
+  background-image: repeating-linear-gradient(to bottom, var(--linea) 0 1px, transparent 1px var(--paso, 60px));
+}
+.calendario .fuera { position: absolute; left: 0; right: 0; background: var(--hoja2); }
+.calendario .pasado { position: absolute; left: 0; right: 0; background: rgba(124,133,124,.14); }
+.calendario .hueco {
+  position: absolute; left: 0; right: 0; background: var(--pino-suave);
+  display: grid; place-items: center;
+}
+.calendario .hueco span { font-size: 11.5px; color: var(--pino); opacity: .85; }
+.calendario .ahora { position: absolute; left: 0; right: 0; border-top: 2px solid var(--rojo); }
+.calendario .ahora::before {
+  content: ''; position: absolute; left: 0; top: -4px; width: 7px; height: 7px;
+  border-radius: 50%; background: var(--rojo);
+}
+.calendario .bloque {
+  position: absolute; overflow: hidden; text-align: left; padding: 3px 7px;
+  background: var(--pino-suave); border: 1px solid var(--linea);
+  border-left: 3px solid var(--pino); border-radius: 7px; cursor: pointer;
+  font-size: 12.5px; line-height: 1.3; min-height: 17px;
+}
+.calendario .bloque:hover { filter: brightness(1.04); border-color: var(--pino); }
+.calendario .bloque.elegida { outline: 2px solid var(--pino); outline-offset: -2px; }
+.calendario .bloque b { font-variant-numeric: tabular-nums; }
+.calendario .bloque .quien { font-weight: 600; }
+.calendario .bloque .que { display: block; color: var(--tinta2); font-size: 11.5px; }
+.calendario .bloque.corto { white-space: nowrap; padding: 0 7px; font-size: 11.5px; }
+.calendario .bloque.corto .que { display: none; }
+.calendario .bloque.atendida { background: var(--hoja2); border-left-color: var(--tinta3); }
+.calendario .bloque.no_vino, .calendario .bloque.anulada {
+  background: var(--rojo-suave); border-left-color: var(--rojo); text-decoration: line-through;
+}
+.calendario .columna .libres { margin-top: 8px; }
+
+.detalle-cita { position: relative; margin-top: 16px; }
+.detalle-cita .cita { margin-bottom: 0; }
+.detalle-cita .cerrar {
+  position: absolute; top: -10px; right: -6px; width: 26px; height: 26px;
+  padding: 0; border-radius: 50%; line-height: 1;
+}
+
+/* En el móvil el calendario se estrecha, pero las columnas siguen estando. */
+@media (max-width: 620px) {
+  .calendario { padding-left: 38px; }
+  .calendario .horas { left: -38px; width: 34px; }
+  .calendario .columnas { gap: 5px; }
+  .calendario .bloque { font-size: 11.5px; padding: 2px 5px; }
+  .calendario .bloque .que { font-size: 11px; }
+}
