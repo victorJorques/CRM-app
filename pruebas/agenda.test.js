@@ -5,7 +5,7 @@ import * as citas from '../nucleo/citas.js';
 import { buscarOCrear } from '../nucleo/clientes.js';
 import { montar, instante, LUNES, MARTES, DOMINGO, AHORA, ZONA } from './ayuda.js';
 import { negocioDePrueba } from './ayuda.js';
-import { claveDia } from '../nucleo/tiempo.js';
+import { claveDia, sumarDias } from '../nucleo/tiempo.js';
 
 function conCita(entorno, { servicioId = 'corte', clave = LUNES, hora = 10, minuto = 0, recursoId = null } = {}) {
   const cliente = buscarOCrear(entorno.db, { telefono: `+3460011${Math.floor(Math.random() * 9000) + 1000}` });
@@ -488,4 +488,53 @@ test('quien está de vacaciones no tiene huecos libres, tampoco', () => {
   const dia = agenda.resumenDia(db, config, LUNES);
   assert.deepEqual(dia.recursos[0].libres, []);
   assert.equal(dia.recursos[0].ausencia, 'vacaciones');
+});
+
+test('donde solo cabe uno a la vez no se avisa de horas al completo', () => {
+  // La peluquera que trabaja sola: cada cita llena su hora. Repetir la agenda
+  // arriba con el cartel de "completo" no le dice nada que no vea ya.
+  const config = negocioDePrueba({
+    recursos: [{ nombre: 'Yo' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 45, precio: 20 }],
+    reglas: { granularidadMinutos: 15, antelacionMinimaHoras: 2, maxPorHora: 1 },
+  });
+  const entorno = { ...montar(), config };
+  const quien = buscarOCrear(entorno.db, { telefono: '+34600111222', nombre: 'Rocío Márquez' });
+  const puesta = citas.reservar(entorno.db, config, {
+    servicioId: 'corte', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: entorno.ahora,
+  });
+  assert.ok(puesta.ok, puesta.motivo);
+  const dia = agenda.resumenDia(entorno.db, config, LUNES);
+  assert.deepEqual(dia.horasCompletas, []);
+  // Pero la cita sí está, y el hueco de esa hora ya no se ofrece.
+  assert.equal(dia.total, 1);
+  assert.ok(!agenda.huecosDelDia(entorno.db, config, { servicioId: 'corte', clave: LUNES, ahora: entorno.ahora })
+    .some((h) => h.hora === '10:00'));
+});
+
+test('los huecos de hoy se cuentan desde ahora, no desde que se abrió', () => {
+  // Son las nueve de la mañana: las ocho ya no es un hueco que ofrecer.
+  const hoy = claveDia(ZONA, AHORA);
+  const config = negocioDePrueba({
+    horario: { lunes: [], martes: [], miercoles: [], jueves: [['08:00', '14:00']], viernes: [['08:00', '14:00']], sabado: [], domingo: [] },
+    recursos: [{ nombre: 'Ana' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 45, precio: 20 }],
+  });
+  const { db } = montar();
+  const dia = agenda.resumenDia(db, config, hoy, { ahora: AHORA });
+  assert.deepEqual(dia.recursos[0].libres.map((h) => `${h.desde}–${h.hasta}`), ['09:00–14:00']);
+  assert.equal(dia.momento, 'hoy');
+});
+
+test('un día que ya pasó no tiene huecos que ofrecer', () => {
+  const ayer = sumarDias(claveDia(ZONA, AHORA), -1);
+  const config = negocioDePrueba({
+    horario: { lunes: [], martes: [], miercoles: [], jueves: [['08:00', '14:00']], viernes: [['08:00', '14:00']], sabado: [], domingo: [] },
+    recursos: [{ nombre: 'Ana' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 45, precio: 20 }],
+  });
+  const { db } = montar();
+  const dia = agenda.resumenDia(db, config, ayer, { ahora: AHORA });
+  assert.deepEqual(dia.recursos[0].libres, []);
+  assert.equal(dia.momento, 'pasado');
 });

@@ -273,12 +273,22 @@ export function comprobarHora(db, config, {
  * tiene cogido. No son horas de inicio sueltas, son huecos de verdad —"de
  * 12:30 a 13:30"— que es como se mira una agenda cuando alguien pregunta si
  * te queda algo esta tarde.
+ *
+ * Con `ahora`, lo de hoy se cuenta desde este momento: las once de la mañana
+ * no es un hueco libre a las seis de la tarde, y un día que ya pasó no tiene
+ * huecos que ofrecer.
  */
-export function huecosLibresDe(config, recurso, clave, citasDelDia) {
+export function huecosLibresDe(config, recurso, clave, citasDelDia, { ahora = null } = {}) {
+  const zona = config.negocio.zonaHoraria;
+  let suelo = -Infinity;
+  if (ahora !== null) {
+    const hoy = claveDia(zona, ahora);
+    if (clave < hoy) return [];
+    if (clave === hoy) suelo = minutosDelDia(zona, ahora);
+  }
   const ocupadas = citasDelDia
     .filter((c) => c.recurso_id === recurso.id && ESTADOS_ACTIVOS.includes(c.estado))
-    .map((c) => [minutosDelDia(config.negocio.zonaHoraria, c.inicio),
-      minutosDelDia(config.negocio.zonaHoraria, c.fin)])
+    .map((c) => [minutosDelDia(zona, c.inicio), minutosDelDia(zona, c.fin)])
     .sort((a, b) => a[0] - b[0]);
 
   const libres = [];
@@ -292,13 +302,17 @@ export function huecosLibresDe(config, recurso, clave, citasDelDia) {
     if (cursor < hasta) libres.push([cursor, hasta]);
   }
   // Los ratos de menos de un cuarto de hora no le sirven a nadie.
-  return libres.filter(([desde, hasta]) => hasta - desde >= 15);
+  return libres
+    .map(([desde, hasta]) => [Math.max(desde, suelo), hasta])
+    .filter(([desde, hasta]) => hasta - desde >= 15);
 }
 
 /** Las horas del día que ya tienen el máximo de citas, con quién las tiene. */
 function horasAlCompleto(config, citas) {
   const tope = config.reglas.maxPorHora ?? Infinity;
-  if (!Number.isFinite(tope)) return [];
+  // Donde solo cabe uno a la vez, cada cita llena su hora y el aviso sería la
+  // agenda repetida. Solo tiene sentido donde caben varios a la misma hora.
+  if (!Number.isFinite(tope) || tope < 2) return [];
   const zona = config.negocio.zonaHoraria;
   const porHora = new Map();
   for (const cita of citas) {
@@ -390,8 +404,11 @@ export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
     { inicioDia, finDia },
   );
   const activas = citas.filter((c) => ESTADOS_ACTIVOS.includes(c.estado));
+  const hoy = claveDia(zona, ahora);
   return {
     dia: clave,
+    // Para saber si "sin huecos" es que está lleno o que el día ya se acabó.
+    momento: clave < hoy ? 'pasado' : (clave === hoy ? 'hoy' : 'futuro'),
     abierto: !esFestivo(config, clave),
     motivoCierre: motivoCierre(config, clave),
     citas,
@@ -400,7 +417,7 @@ export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
       nombre: recurso.nombre,
       tramos: tramosDe(config, recurso, clave).map(([d, h]) => [horaDeMinutos(d), horaDeMinutos(h)]),
       ausencia: ausencia(recurso, clave)?.motivo ?? null,
-      libres: huecosLibresDe(config, recurso, clave, citas)
+      libres: huecosLibresDe(config, recurso, clave, citas, { ahora })
         .map(([d, h]) => ({ desde: horaDeMinutos(d), hasta: horaDeMinutos(h), minutos: h - d })),
       citas: citas.filter((c) => c.recurso_id === recurso.id),
     })),

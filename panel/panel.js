@@ -27,6 +27,13 @@ const precioDicho = (centimos) => {
   return centimos === 0 ? ' · gratis' : ` · ${dinero(centimos)}`;
 };
 
+/** Que no queden huecos no es lo mismo que el día ya se haya acabado. */
+const sinHuecos = (momento) => {
+  if (momento === 'pasado') return '<b>Jornada terminada.</b>';
+  if (momento === 'hoy') return '<b>Sin huecos:</b> por hoy ya no queda sitio.';
+  return '<b>Sin huecos:</b> el día está completo.';
+};
+
 // Las horas se pintan en la hora del NEGOCIO, no en la del ordenador que mira.
 // Si no, el panel dice una hora y el bot le dice otra al cliente, que es la
 // mejor manera de que alguien se plante un día a las nueve y no le toque.
@@ -133,8 +140,8 @@ async function cargarAgenda() {
     // Los huecos libres, que es lo que se mira cuando alguien pregunta si
     // queda algo esta tarde.
     const libres = (recurso.libres ?? []).length
-      ? `<p class="libres"><b>Libre:</b> ${recurso.libres.map((h) => `${escapar(h.desde)}–${escapar(h.hasta)} <small>(${h.minutos} min)</small>`).join(' · ')}</p>`
-      : (recurso.tramos.length ? '<p class="libres llena"><b>Sin huecos:</b> el día está completo.</p>' : '');
+      ? `<p class="libres"><b>${dia.momento === 'hoy' ? 'Queda libre' : 'Libre'}:</b> ${recurso.libres.map((h) => `${escapar(h.desde)}–${escapar(h.hasta)} <small>(${h.minutos} min)</small>`).join(' · ')}</p>`
+      : (recurso.tramos.length ? `<p class="libres llena">${sinHuecos(dia.momento)}</p>` : '');
     return `<div class="recurso"><h3>${escapar(recurso.nombre)} <small>${escapar(tramos)}</small></h3>${citas}${libres}</div>`;
   }).join('') || '<p class="vacio">Nadie trabaja este día.</p>';
 
