@@ -130,7 +130,12 @@ async function cargarAgenda() {
     const citas = recurso.citas.length
       ? recurso.citas.map(pintarCita).join('')
       : '<p class="vacio">Sin citas.</p>';
-    return `<div class="recurso"><h3>${escapar(recurso.nombre)} <small>${escapar(tramos)}</small></h3>${citas}</div>`;
+    // Los huecos libres, que es lo que se mira cuando alguien pregunta si
+    // queda algo esta tarde.
+    const libres = (recurso.libres ?? []).length
+      ? `<p class="libres"><b>Libre:</b> ${recurso.libres.map((h) => `${escapar(h.desde)}–${escapar(h.hasta)} <small>(${h.minutos} min)</small>`).join(' · ')}</p>`
+      : (recurso.tramos.length ? '<p class="libres llena"><b>Sin huecos:</b> el día está completo.</p>' : '');
+    return `<div class="recurso"><h3>${escapar(recurso.nombre)} <small>${escapar(tramos)}</small></h3>${citas}${libres}</div>`;
   }).join('') || '<p class="vacio">Nadie trabaja este día.</p>';
 
   $$('#agenda [data-accion]').forEach((boton) => boton.addEventListener('click', accionDeCita));

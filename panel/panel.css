@@ -106,6 +106,15 @@ main { padding: 18px 20px 60px; max-width: 1180px; margin: 0 auto; }
 .cita .quien { font-weight: 600; }
 .cita .que { color: var(--tinta2); font-size: 13.5px; }
 .cita .acciones { display: flex; gap: 6px; flex-wrap: wrap; }
+.libres {
+  margin: 6px 0 0; font-size: 13.5px; color: var(--tinta2);
+  padding: 8px 14px; background: var(--pino-suave); border-radius: 6px;
+}
+.libres b { color: var(--pino); }
+.libres small { color: var(--tinta3); }
+.libres.llena { background: var(--ocre-suave); }
+.libres.llena b { color: var(--ocre); }
+
 .cita.completa { border-left-color: var(--ocre); background: var(--ocre-suave); align-items: start; }
 
 /* Los que coinciden a esa hora: uno por línea y numerados, porque lo que

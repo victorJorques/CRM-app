@@ -1,0 +1,103 @@
+{
+  "negocio": {
+    "nombre": "Peluquería (una sola persona)",
+    "tipo": "peluqueria",
+    "zonaHoraria": "Europe/Madrid",
+    "moneda": "EUR"
+  },
+  "horario": {
+    "lunes": [
+      [
+        "09:30",
+        "20:00"
+      ]
+    ],
+    "martes": [
+      [
+        "09:30",
+        "20:00"
+      ]
+    ],
+    "miercoles": [
+      [
+        "09:30",
+        "20:00"
+      ]
+    ],
+    "jueves": [
+      [
+        "09:30",
+        "20:00"
+      ]
+    ],
+    "viernes": [
+      [
+        "09:30",
+        "20:00"
+      ]
+    ],
+    "sabado": [],
+    "domingo": []
+  },
+  "reglas": {
+    "granularidadMinutos": 15,
+    "antelacionMinimaHoras": 2,
+    "cancelacionMinimaHoras": 24,
+    "maxPorHora": 1
+  },
+  "servicios": [
+    {
+      "nombre": "Corte",
+      "duracionMinutos": 45,
+      "precio": 20,
+      "alias": [
+        "cortar",
+        "corte de pelo",
+        "pelarme"
+      ]
+    },
+    {
+      "nombre": "Peinado",
+      "duracionMinutos": 45,
+      "precio": 25,
+      "alias": [
+        "recogido",
+        "secado"
+      ]
+    },
+    {
+      "nombre": "Tinte",
+      "duracionMinutos": 105,
+      "precio": 55,
+      "alias": [
+        "teñir",
+        "color",
+        "raices"
+      ]
+    },
+    {
+      "nombre": "Mechas",
+      "duracionMinutos": 150,
+      "precio": 85,
+      "alias": [
+        "mechitas",
+        "balayage"
+      ]
+    },
+    {
+      "nombre": "Corte y tinte",
+      "duracionMinutos": 135,
+      "precio": 70
+    }
+  ],
+  "recursos": [
+    {
+      "nombre": "Yo"
+    }
+  ],
+  "recordatorios": {
+    "vispera": true,
+    "visperaHora": "19:00",
+    "seguimientoInactivosDias": 120
+  }
+}

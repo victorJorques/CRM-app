@@ -15,7 +15,8 @@ const gris = (t) => `\x1b[90m${t}\x1b[0m`;
 const verde = (t) => `\x1b[32m${t}\x1b[0m`;
 
 const ETIQUETAS = {
-  peluqueria: 'Peluquería o barbería',
+  peluqueria: 'Peluquería o barbería (varias personas)',
+  'peluquera-sola': 'Peluquería de una sola persona',
   dentista: 'Clínica (dental, médica, veterinaria)',
   taller: 'Taller o servicio técnico',
   fisioterapia: 'Fisioterapia, psicología, terapias',

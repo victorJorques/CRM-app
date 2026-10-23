@@ -418,3 +418,74 @@ test('si alguien tiene algo más ese día, sale al lado de su nombre', () => {
   const nuria = dia.horasCompletas.find((h) => h.hora === '12:00').clientes.find((c) => c.nombre === 'Nuria Salas');
   assert.deepEqual(nuria.masEseDia, []);
 });
+
+// --- Los huecos libres, que es lo que mira quien lleva la agenda ----------
+
+test('los huecos libres son los ratos de verdad, no horas sueltas', () => {
+  const config = negocioDePrueba({
+    horario: {
+      lunes: [['09:30', '20:00']], martes: [], miercoles: [], jueves: [], viernes: [], sabado: [], domingo: [],
+    },
+    recursos: [{ nombre: 'Ana' }],
+    servicios: [
+      { nombre: 'Corte', duracionMinutos: 45, precio: 20 },
+      { nombre: 'Mechas', duracionMinutos: 150, precio: 85 },
+    ],
+    reglas: { granularidadMinutos: 15, antelacionMinimaHoras: 2 },
+  });
+  const entorno = { ...montar(), config };
+  const quien = buscarOCrear(entorno.db, { telefono: '+34600200001', nombre: 'Pilar' });
+  citas.reservar(entorno.db, config, { servicioId: 'mechas', inicio: instante(LUNES, 10), clienteId: quien.id, ahora: entorno.ahora });
+  const otra = buscarOCrear(entorno.db, { telefono: '+34600200002', nombre: 'Rosa' });
+  citas.reservar(entorno.db, config, { servicioId: 'corte', inicio: instante(LUNES, 13, 30), clienteId: otra.id, ahora: entorno.ahora });
+
+  const dia = agenda.resumenDia(entorno.db, config, LUNES);
+  assert.deepEqual(dia.recursos[0].libres, [
+    { desde: '09:30', hasta: '10:00', minutos: 30 },
+    { desde: '12:30', hasta: '13:30', minutos: 60 },
+    { desde: '14:15', hasta: '20:00', minutos: 345 },
+  ]);
+});
+
+test('un día sin nada tiene el horario entero libre', () => {
+  const config = negocioDePrueba({
+    horario: { lunes: [['09:30', '14:00'], ['16:00', '20:00']], martes: [], miercoles: [], jueves: [], viernes: [], sabado: [], domingo: [] },
+    recursos: [{ nombre: 'Ana' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 45, precio: 20 }],
+  });
+  const { db } = montar();
+  const dia = agenda.resumenDia(db, config, LUNES);
+  assert.deepEqual(dia.recursos[0].libres.map((h) => `${h.desde}–${h.hasta}`), ['09:30–14:00', '16:00–20:00']);
+});
+
+test('un día lleno no tiene huecos, y se nota', () => {
+  const config = negocioDePrueba({
+    horario: { lunes: [['09:00', '10:30']], martes: [], miercoles: [], jueves: [], viernes: [], sabado: [], domingo: [] },
+    recursos: [{ nombre: 'Ana' }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 45, precio: 20 }],
+    reglas: { granularidadMinutos: 45, antelacionMinimaHoras: 2 },
+  });
+  const entorno = { ...montar(), config };
+  for (const [i, hora] of [[0, 9], [1, 9.75]].entries ? [[0, 9], [1, 9.75]] : []) {
+    const quien = buscarOCrear(entorno.db, { telefono: `+3460020011${i}` });
+    citas.reservar(entorno.db, config, {
+      servicioId: 'corte',
+      inicio: instante(LUNES, Math.floor(hora), Math.round((hora % 1) * 60)),
+      clienteId: quien.id,
+      ahora: entorno.ahora,
+    });
+  }
+  const dia = agenda.resumenDia(entorno.db, config, LUNES);
+  assert.deepEqual(dia.recursos[0].libres, []);
+});
+
+test('quien está de vacaciones no tiene huecos libres, tampoco', () => {
+  const config = negocioDePrueba({
+    recursos: [{ nombre: 'Ana', ausencias: [{ desde: LUNES, hasta: LUNES, motivo: 'vacaciones' }] }],
+    servicios: [{ nombre: 'Corte', duracionMinutos: 30, precio: 20 }],
+  });
+  const { db } = montar();
+  const dia = agenda.resumenDia(db, config, LUNES);
+  assert.deepEqual(dia.recursos[0].libres, []);
+  assert.equal(dia.recursos[0].ausencia, 'vacaciones');
+});

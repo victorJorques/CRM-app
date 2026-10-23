@@ -5,7 +5,7 @@
 // ---------------------------------------------------------------------------
 
 import {
-  claveDia, diaSemana, instanteDe, inicioDelDia, sumarDias, diasEntre, hora, horaDeMinutos,
+  claveDia, diaSemana, instanteDe, inicioDelDia, sumarDias, diasEntre, hora, horaDeMinutos, minutosDelDia,
 } from './tiempo.js';
 import {
   servicioPorId, recursosDe, horarioDe, esFestivo, motivoCierre, ausencia, sinTildes,
@@ -268,6 +268,33 @@ export function comprobarHora(db, config, {
   };
 }
 
+/**
+ * Los ratos libres de alguien en un día: sus tramos de trabajo menos lo que ya
+ * tiene cogido. No son horas de inicio sueltas, son huecos de verdad —"de
+ * 12:30 a 13:30"— que es como se mira una agenda cuando alguien pregunta si
+ * te queda algo esta tarde.
+ */
+export function huecosLibresDe(config, recurso, clave, citasDelDia) {
+  const ocupadas = citasDelDia
+    .filter((c) => c.recurso_id === recurso.id && ESTADOS_ACTIVOS.includes(c.estado))
+    .map((c) => [minutosDelDia(config.negocio.zonaHoraria, c.inicio),
+      minutosDelDia(config.negocio.zonaHoraria, c.fin)])
+    .sort((a, b) => a[0] - b[0]);
+
+  const libres = [];
+  for (const [desde, hasta] of tramosDe(config, recurso, clave)) {
+    let cursor = desde;
+    for (const [ocupadoDesde, ocupadoHasta] of ocupadas) {
+      if (ocupadoHasta <= cursor || ocupadoDesde >= hasta) continue;
+      if (ocupadoDesde > cursor) libres.push([cursor, Math.min(ocupadoDesde, hasta)]);
+      cursor = Math.max(cursor, Math.min(ocupadoHasta, hasta));
+    }
+    if (cursor < hasta) libres.push([cursor, hasta]);
+  }
+  // Los ratos de menos de un cuarto de hora no le sirven a nadie.
+  return libres.filter(([desde, hasta]) => hasta - desde >= 15);
+}
+
 /** Las horas del día que ya tienen el máximo de citas, con quién las tiene. */
 function horasAlCompleto(config, citas) {
   const tope = config.reglas.maxPorHora ?? Infinity;
@@ -373,6 +400,8 @@ export function resumenDia(db, config, clave, { ahora = Date.now() } = {}) {
       nombre: recurso.nombre,
       tramos: tramosDe(config, recurso, clave).map(([d, h]) => [horaDeMinutos(d), horaDeMinutos(h)]),
       ausencia: ausencia(recurso, clave)?.motivo ?? null,
+      libres: huecosLibresDe(config, recurso, clave, citas)
+        .map(([d, h]) => ({ desde: horaDeMinutos(d), hasta: horaDeMinutos(h), minutos: h - d })),
       citas: citas.filter((c) => c.recurso_id === recurso.id),
     })),
     horasCompletas: horasAlCompleto(config, citas),

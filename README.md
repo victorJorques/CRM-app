@@ -85,8 +85,8 @@ Todo lo que distingue un negocio de otro vive en `conserje.config.json`:
 }
 ```
 
-Hay seis plantillas listas en `plantillas/`: peluquería, clínica dental,
-taller, fisioterapia, asesoría y una genérica. `node configurar.js` te copia la
+Hay siete plantillas listas en `plantillas/`: peluquería, peluquería de una
+sola persona, clínica dental, taller, fisioterapia, asesoría y una genérica. `node configurar.js` te copia la
 que elijas y te pregunta los cuatro datos que hacen falta.
 
 El **vocabulario** manda en cómo habla: donde una peluquería dice «tu cita con
@@ -151,7 +151,7 @@ panel/             la interfaz
 plantillas/        seis tipos de negocio listos
 exportar.js        saca los datos a CSV y copia la base
 demo-web/          empaqueta todo en una página web que funciona sin servidor
-pruebas/           345 pruebas
+pruebas/           349 pruebas
 ```
 
 Más detalle en [docs/COMO-FUNCIONA.md](docs/COMO-FUNCIONA.md).
@@ -192,7 +192,7 @@ solo para construir la demostración, y por eso no están en `package.json`.
 ## Pruebas
 
 ```
-npm test     # 345 pruebas, sin red y sin tocar tu base
+npm test     # 349 pruebas, sin red y sin tocar tu base
 ```
 
 Cubren el motor de huecos (incluido el fin de semana del cambio de hora), que

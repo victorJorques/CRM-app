@@ -2,6 +2,7 @@
 // que se reparten con Conserje, metidas en el fichero para que la página no
 // tenga que pedir nada por la red.
 import peluqueria from '../plantillas/peluqueria.json' with { type: 'json' };
+import peluqueraSola from '../plantillas/peluquera-sola.json' with { type: 'json' };
 import dentista from '../plantillas/dentista.json' with { type: 'json' };
 import taller from '../plantillas/taller.json' with { type: 'json' };
 import fisioterapia from '../plantillas/fisioterapia.json' with { type: 'json' };
@@ -9,6 +10,7 @@ import asesoria from '../plantillas/asesoria.json' with { type: 'json' };
 
 export const NEGOCIOS = [
   { id: 'peluqueria', etiqueta: 'Peluquería', config: peluqueria },
+  { id: 'peluquera-sola', etiqueta: 'Peluquería de una persona', config: peluqueraSola },
   { id: 'clinica', etiqueta: 'Clínica dental', config: dentista },
   { id: 'taller', etiqueta: 'Taller', config: taller },
   { id: 'fisioterapia', etiqueta: 'Fisioterapia', config: fisioterapia },
